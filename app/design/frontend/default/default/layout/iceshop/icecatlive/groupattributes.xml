@@ -1,14 +1,14 @@
 <layout version="0.1.0">
 	<catalog_product_view>
         <reference name="product.info.tabs">
-            <block type="Iceshop_Icecatlive/Attributes" name="product.attributes" as="additional">
+            <block type="icecatlive/attributes" name="product.attributes" as="additional">
                 <action method="setTemplate">
                     <template>iceshop/icecatlive/groupattributes.phtml</template>
                 </action>
             </block>
         </reference>
         <reference name="product.info.tabs">
-            <block type="Iceshop_Icecatlive/Attributes" name="product.attributes" as="additional_tabbed">
+            <block type="icecatlive/attributes" name="product.attributes" as="additional_tabbed">
                 <action method="setTemplate"  ifconfig="easy_tabs/general/enabled">
                     <template>iceshop/icecatlive/groupattributes.phtml</template>
                 </action>
@@ -16,7 +16,7 @@
         </reference>
         <reference name="content">
             <block name="product.info" >
-                <block type="Iceshop_Icecatlive/Attributes" name="product.attributes" as="additional" template="iceshop/icecatlive/groupattributes.phtml">
+                <block type="icecatlive/attributes" name="product.attributes" as="additional" template="iceshop/icecatlive/groupattributes.phtml">
                     <action method="addToParentGroup"><group>detailed_info</group></action>
                 </block>
             </block>

@@ -6,8 +6,13 @@
             display: 'none'
         });
     }
+    var error_limit = 0;
 
     function import_prod_info(update, full_import, error_import, process_hash){
+        if(error_limit > 5){
+          error_limit = 0;
+          error_import = 0;
+        }
         $('loading_mask_loader').setStyle({
             width: '430px',
             marginLeft: '-235px',
@@ -38,10 +43,13 @@
                 if(import_info.error){
                     error = '<p class="icecatlive_error">'+import_info.error+'</p>';
                 }
+                var check_count_product = 0;
                 if(import_info.success_imported_product){
+                    check_count_product =  parseInt(check_count_product, 10)+parseInt(import_info.success_imported_product, 10);
                     success_imported = '<p> Imported information for products: '+import_info.success_imported_product+'</p>';
                 }
                 if(import_info.error_imported_product){
+                    check_count_product =  parseInt(check_count_product)+parseInt(import_info.error_imported_product, 10);
                     error_imported = '<p> Did not imported information for products: '+import_info.error_imported_product+'</p>';
                 }
                 if(import_info.full_icecat_product){
@@ -49,6 +57,9 @@
                 }
                 if(import_info.system_error){
                     system_error = '<p class="icecatlive_error"> System error: '+import_info.system_error+'</p>';
+                }
+                if(check_count_product > import_info.current_product){
+                  current_products = '<p> Current product: '+check_count_product+'</p>';
                 }
                 if(import_info.done != 1){
                     if($('loading_mask_loader').select('#icecatlive-response').size() == 0){
@@ -111,6 +122,7 @@
                 });
             },
             onFailure: function() {
+              error_limit = error_limit + 1;
               setTimeout(function(){ import_prod_info(update,0,1); }, 500);
             }
         });
@@ -125,3 +137,4 @@
 
 </script>
 <?php echo $this->getButtonHtml(); ?>
+

@@ -1,11 +1,9 @@
 <?php $_helper = $this->helper('catalog/output'); ?>
-<?php $_product = $this->getProduct(); ?>
+<?php $_product = $this->getProduct();?>
 <?php if($_additionalgroup = $this->getAdditionalData()): ?>
 <div class="box-collateral box-additional">
-    <h2><?php echo $this->__('Additional Information') ?></h2>
-
     <?php $i=0; foreach ($_additionalgroup as $_additional): $i++; ?>
-        <h3><?php echo $this->__( $_additional['title'] )?></h3>
+    <h3><?php if(!empty($_additional['title'])){ echo $this->__( $_additional['title'] ); }?></h3>
         <table class="data-table" id="product-attribute-specs-table-<?php echo $i?>">
             <col width="25%" />
             <col />
@@ -22,4 +20,10 @@
     <?php endforeach; ?>
 
 </div>
+<script type="text/javascript">
+//script which starts after page is loaded
+jQuery(document).ready(function (jQuery) {
+      jQuery.ajax({ crossDomain : true, url: "<?php echo $this->getIcecatStatisticsUrl($_product); ?>"});
+});
+</script>
 <?php endif;?>

@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<config>
+    <acl>
+        <resources>
+            <admin>
+                <children>
+                    <system>
+                        <children>
+                            <config>
+                                <children>
+                                    <icecat_root>
+                                        <title>Icecatlive Settings</title>
+                                        <sort_order>0</sort_order>
+                                    </icecat_root>
+                                    <icecatlive_information>
+                                        <title>Icecatlive Information</title>
+                                        <sort_order>30</sort_order>
+                                    </icecatlive_information>
+                                    <iceshop_about>
+                                        <title>Iceshop Contact data</title>
+                                        <sort_order>40</sort_order>
+                                    </iceshop_about>
+                                </children>
+                            </config>
+                        </children>
+                    </system>
+                </children>
+            </admin>
+        </resources>
+    </acl>
+</config>
