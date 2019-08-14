@@ -15,6 +15,7 @@ class Bintime_Icecatimport_Helper_Image extends Mage_Core_Helper_Abstract
     $_product       = $_product->load($_product->getId());
     $sku            = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
     $manufacturerId = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
+    
     $connection     = Mage::getSingleton('core/resource')->getConnection('core_read');
     $query          = $connection->select()
       ->from(Mage::getSingleton('core/resource')->getTableName('eav_entity_type'),'entity_type_id')
@@ -35,7 +36,8 @@ class Bintime_Icecatimport_Helper_Image extends Mage_Core_Helper_Abstract
       break;
     }
     $this->observer = Mage::getSingleton('icecatimport/observer');
-    $url            = $this->observer->getImageURL($sku, $manufacturer);
+    
+    $url            = $this->observer->getImageURL($sku, $manufacturer,$_product->getId());
     return  $url;
   }
 

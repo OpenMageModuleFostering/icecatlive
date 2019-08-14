@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
     <name>IcecatLive</name>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
     <stability>stable</stability>
     <license uri="http://opensource.org/licenses/osl-3.0.php">OSL v.3</license>
     <channel>community</channel>
@@ -11,13 +11,19 @@
     <notes> - Added mapping by EAN/UPC codes&#xD;
  - Added support of Multilanguage stores&#xD;
  - Added new setting Description&#xD;
+ - Added loading products description from DB when icecat info is missing and config setting product descr source is set to icecat &#xD; 
+ - Added saving icecat images to server and display from there &#xD; 
+ - Added saving product title to db from file and display it on list page &#xD; 
  - Fixed problems with Icecat names&#xD;
  - Fixed problems with images on product listing/shopping cart.&#xD;
  - Fixed problems with correct displaying attributes on product detail page&#xD;
- - Fixed problems with description on product detail page</notes>
+ - Fixed problems with description on product detail page &#xD;
+ - Fixed product info in breadcrumbs &#xD;
+ - Fixed problems with loading icecat data for each product on product listing page &#xD;
+</notes>
     <authors><author><name>IceShop</name><user>IceShop</user><email>support@iceshop.nl</email></author></authors>
-    <date>2012-10-03</date>
-    <time>14:19:01</time>
+    <date>2013-07-01</date>
+    <time>10:45:01</time>
     <contents><target name="magelocal"><dir name="Bintime"><dir name="Icecatimport"><dir name="Block"><file name="Attributes.php" hash="ae93e0a964e8880e5b65fb5d08f1edf9"/><file name="Media.php" hash="a71e447a139b851da50937bccaf8bd37"/><file name="Related.php" hash="7ca2ad6520f2644ad1302c02d1cd6853"/><file name="Upsell.php" hash="f7a79cee4cb7ecb679f65e7ec7a487c4"/></dir><dir name="controllers"><file name="ImageController.php" hash="cdf4984c268346088729831b7abdf026"/></dir><dir name="etc"><file name="config.xml" hash="13d5b3c94451f13119c90a8added2374"/><file name="system.xml" hash="42faa23748e785e3b99c17f15d32f67e"/></dir><dir name="Helper"><dir name="Catalog"><file name="Image.php" hash="4952fd82b7fb4cb68498ec7655a990ee"/></dir><file name="Getdata.php" hash="6e582c84a4f65071fbc6daf6b4e03de5"/><file name="Image.php" hash="62a1ab4c2b773f6aafc877a0f43689bd"/><file name="Output.php" hash="66a35fb37504ff30a2188b34941d991e"/></dir><dir name="Model"><dir name="Catalog"><file name="Category.php" hash="21abeb7a7c2c85db8ce4d2f4ed203f50"/><file name="Product.php" hash="e94919ad720fccd16c061e31ac26d05d"/><file name="Search.php" hash="99c7eb706e67e01ea8167ebe88fe72d9"/></dir><dir name="System"><dir name="Config"><file name="Attributes.php" hash="23284e0d38677b4544fc87642a6bc8b5"/><file name="LanguageList.xml" hash="391ef56fab212879709780df5a7710e7"/><file name="Locales.php" hash="b8c699fa2a6f657b6d52d86e656872cc"/><file name="Subscription.php" hash="62168986f7a4eb3f10d38ac627aa6510"/><file name="Descriptionpriority.php" hash="e32f7b5893ded762a45c742d4e6944fd"/></dir></dir><file name="Imagescollection.php" hash="718b575ef9472f85c323fa40f80bbd05"/><file name="Import.php" hash="8043d30eebe86ea03c917ef8f38e2a65"/><file name="Observer.php" hash="99795f94b4dd8c1f9dd1bb5df8ad0337"/><file name="Relatedcollection.php" hash="2ddf62c43a66c3fd70bf651d0078dbc1"/></dir><dir name="sql"><dir name="icecatimport_setup"><file name="mysql4-install-0.1.0.php" hash="08f5875b240c2f229b95194b6335f9a6"/><file name="mysql4-upgrade-0.1.0-0.1.1.php" hash="c0581c5b00420492714bd7e3cc66cb6d"/></dir></dir></dir></dir></target><target name="mageetc"><dir name="modules"><file name="Bintime_Icecatimport.xml" hash="daf681aae3e710568d210313816a9d5f"/></dir></target></contents>
     <compatible/>
     <dependencies><required><php><min>5.2.0</min><max>6.0.0</max></php></required></dependencies>

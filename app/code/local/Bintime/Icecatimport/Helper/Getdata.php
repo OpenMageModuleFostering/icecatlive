@@ -133,7 +133,10 @@ class Bintime_Icecatimport_Helper_Getdata extends Mage_Core_Helper_Abstract
    * Form related products list according to store products
    */
   public function getRelatedProducts(){
-    $relatedProducts =$this->iceCatModel->getRelatedProducts();
+    if (!$this->iceCatModel) {
+      $this->iceCatModel = Mage::getSingleton('icecatimport/import');
+	}
+    $relatedProducts = $this->iceCatModel->getRelatedProducts();
     if (empty($relatedProducts)){
       return array();
     }

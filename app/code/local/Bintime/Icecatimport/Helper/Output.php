@@ -20,22 +20,44 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
    * @return  string
    */
   public function productAttribute($product, $attributeHtml, $attributeName){		
+  
+    $productId =  $product->getId();
 
     if (!mage::registry('product')) {
-      return parent::productAttribute($product, $attributeHtml, $attributeName);
-    }
+        Mage::register('product', $product);
+        Mage::register('current_product', $product);
+     // return parent::productAttribute($product, $attributeHtml, $attributeName);
+    } 
+	
+	if ($attributeName == 'image') {
+	  return parent::productAttribute($product, $attributeHtml, $attributeName);
+	}
 
     $productDescriptionPriority = Mage::getStoreConfig('icecat_root/icecat/descript_priority');
     $dbDescriptionPriority = false;
-     if ($productDescriptionPriority == 'Db' &&
+    $current_page = Mage::app()->getFrontController()->getRequest()->getControllerName();
+    if ($productDescriptionPriority == 'Db' &&
          ( $attributeName == 'description' || $attributeName == 'short_description')) {
-       $dbDescriptionPriority = true;     
+       $dbDescriptionPriority = true;
     }
-   
-    if ($dbDescriptionPriority) {
+	
+    if ($current_page == 'product') {
+      $bin_prod = new Bintime_Icecatimport_Model_Catalog_Product(); 
+	  if ($attributeName == 'description' || $attributeName == 'short_description') {
+        $descr = $bin_prod->checkIcecatProdDescription($productId,$attributeName);
+	  }
+	}
+    $prod_source = Bintime_Icecatimport_Model_Catalog_Product::$_product_source;
+	  
+    if( $prod_source == 'DB' && empty($descr) ) {
+        $dbDescriptionPriority = true;
+    }
+     
+    if ($dbDescriptionPriority || ($current_page != 'product' 
+                                   && $prod_source != 'DB' && $attributeName != 'name') ) {
+       $attributeHtml = $product->getData('short_description');
        return parent::productAttribute($product, $attributeHtml, $attributeName);     
     }
-
     $this->iceCatModel = Mage::getSingleton('icecatimport/import');
     if ($this->isFirstTime){ 
       $helper = Mage::helper('icecatimport/getdata');
@@ -58,8 +80,10 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
     $id = $product->getData('entity_id');
     if ($attributeName == 'name'){ 
       //if we on product page then mage::registry('product') exist
-      if ($product->getId() == $this->iceCatModel->entityId && $name = $product->getData('brand_name') . ' ' . $this->iceCatModel->getProductName()) {
+      if ($product->getId() == $this->iceCatModel->entityId && $name = $this->iceCatModel->getProductName()) {
         return $name;
+      } else if(!empty($descr)) {
+	    return $descr;  
       }
       $manufacturerId = Mage::getStoreConfig('icecat_root/icecat/manufacturer');
       $mpn = Mage::getStoreConfig('icecat_root/icecat/sku_field');
@@ -72,10 +96,23 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
     }
 
     if ($attributeName == 'short_description') {
-      return $this->iceCatModel->getShortProductDescription();
+	  $icecat_descr = $this->iceCatModel->getShortProductDescription();
+      if (!empty($descr)) {
+        return $descr;
+      } else if(!empty($icecat_descr)) {
+        return $icecat_descr;
+      } else {
+        $attributeHtml = $product->getData('short_description');
+        return parent::productAttribute($product, $attributeHtml, $attributeName);
+      }
     }
     if ($attributeName == 'description') {
-      return str_replace("\\n", "<br>",$this->iceCatModel->getFullProductDescription());
+      $icecat_full_descr = $this->iceCatModel->getFullProductDescription();
+      if (!empty($icecat_full_descr)) {
+        return str_replace("\\n", "<br>",$icecat_full_descr);
+      } else {
+        $attributeHtml = $product->getData('description');
+      }
     }
     return parent::productAttribute($product, $attributeHtml, $attributeName);
   } 

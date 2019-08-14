@@ -41,9 +41,13 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
    * @param string $userPass
    */
   public function getProductDescription($productId, $vendorName, $locale, $userName, $userPass, $entityId, $ean_code){
-    $this->entityId = $entityId;
-    if (null === $this->simpleDoc) {
-      if (!$cacheDataXml = Mage::app()->getCache()->load($this->_cacheKey . $entityId . '_' . $locale)) {
+
+      $this->entityId = $entityId;
+      $error = '';
+      if (null === $this->simpleDoc) {
+        
+      if (true || (!$cacheDataXml = Mage::app()->getCache()->load($this->_cacheKey . $entityId . '_' . $locale))) {
+
         $dataUrl = 'http://data.icecat.biz/xml_s3/xml_server3.cgi';
         $successRespondByMPNVendorFlag = false;
         if ( empty($userName)) {
@@ -63,34 +67,37 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
             $this->errorMessage = 'Given product has invalid IceCat data';
             return false;
         }
-
+     
         if (!empty($productId) && !empty($vendorName)) {
+        
           $resultString = $this->_getIceCatData($userName, $userPass, $dataUrl, array(
             "prod_id" => $productId,
             "lang"    => $locale,
             "vendor"  => $vendorName,
             "output"  => 'productxml'
           ));
+		 
           if ($this->parseXml($resultString)) {
             if (!$this->checkIcecatResponse()) {
               $successRespondByMPNVendorFlag = true; 
             } 
           } 
         }
+        
         // if get data by MPN & brand name wrong => trying by Ean code
         if (!$successRespondByMPNVendorFlag) {
-          $error = false;
           if (!empty($ean_code)) {
             $resultString = $this->_getIceCatData($userName, $userPass, $dataUrl, array(
-              'ean_upc' => $ean_code,
+              'ean_upc' => trim($ean_code),
               'lang'    => $locale,
               'output'  => 'productxml'
             ));
+           
             if (!$this->parseXml($resultString)) {
               $error = true;
               $this->simpleDoc = null;
             }
-            if ($this->checkIcecatResponse()) {
+            if ($this->checkIcecatResponse()) { 
               $error = true;
               $this->simpleDoc = null;
             }
@@ -105,6 +112,7 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
         Mage::app()->getCache()->save($resultString, $this->_cacheKey . $entityId . '_' . $locale);
       } else {
         $resultString = $cacheDataXml;
+		
         if (!$this->parseXml($resultString)){
           return false;
         }
@@ -112,12 +120,14 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
           return false;
         }
       }
+     
       $this->loadProductDescriptionList();
       $this->loadOtherProductParams($productId);
       $this->loadGalleryPhotos();
       Varien_Profiler::start('Bintime FILE RELATED');
       $this->loadRelatedProducts();
       Varien_Profiler::stop('Bintime FILE RELATED');
+      
     }
     return true;
   }
@@ -156,6 +166,26 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
 
   public function getThumbPicture(){
     return $this->thumb;
+  }
+  
+  public function getImg($productId) {
+    $model = Mage::getModel('catalog/product');
+    $_product = $model->load($productId);  
+    $entity_id = $_product->getEntityId();
+    $ean_code     = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/ean_code')); 
+    $vendorName = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
+    $locale       = Mage::getStoreConfig('icecat_root/icecat/language');
+    if ($locale == '0'){
+      $systemLocale = explode("_", Mage::app()->getLocale()->getLocaleCode());
+      $locale = $systemLocale[0];
+    }
+    $userLogin    = Mage::getStoreConfig('icecat_root/icecat/login');
+    $userPass     = Mage::getStoreConfig('icecat_root/icecat/password');
+    $mpn          = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
+    $this->getProductDescription($mpn, $vendorName, $locale, $userLogin, $userPass, $entity_id, $ean_code);
+    if ($this->simpleDoc) {
+      return $this->highPicUrl;    
+    }  
   }
 
   /**
@@ -326,16 +356,21 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
     $this->_manualPdfUrl          = (string)$productTag->ProductDescription['ManualPDFURL'];
     $this->_pdfUrl                = (string)$productTag->ProductDescription['PDFURL'];
     $this->_multimedia            = $productTag->ProductMultimediaObject->MultimediaObject;
-    $this->lowPicUrl              = (string)$productTag["LowPic"];
-    $this->highPicUrl             = (string)$productTag["HighPic"];
-    $this->productName            = (string)$productTag["Name"];
+    $baseDir = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath().'/';	
+	if (!empty($productTag["HighPic"])) {
+	  $this->highPicUrl             = $this->saveImg($this->entityId,(string)$productTag["HighPic"]); 
+	} else if (!empty($productTag["LowPic"])) {
+	  $this->lowPicUrl              = $this->saveImg($this->entityId,(string)$productTag["LowPic"],'small');  
+	} else {
+	  $this->thumb                  = $this->saveImg($this->entityId,(string)$productTag["ThumbPic"],'thumb');
+	}
+    
+    $this->productName            = (string)$productTag["Title"];
     $this->productId              = (string)$productTag['Prod_id'];
-    $this->thumb                  = (string)$productTag['ThumbPic'];
     $this->vendor                 = (string)$productTag->Supplier['Name'];
     $prodEAN                      = $productTag->EANCode;
     $EANstr                       = '';
     $EANarr                       = null;
-
     $j = 0;//counter
     foreach($prodEAN as $ellEAN){
       $EANarr[]=$ellEAN['EAN'];$j++;
@@ -351,7 +386,6 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
       } else {if($i != $j-1){$str .= $EANarr[$i].', <br>';}else {$str .= $EANarr[$i].' <br>';}}
     }
     $this->EAN = $str;
-
   }
 
   /**
@@ -370,5 +404,112 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
     }   
     return false;
   }
+  
+  /**
+   * save icecat img 
+   * @param int $productId
+   * @param string $img_url
+   * @param string $img_type
+   */
+  public function saveImg($productId,$img_url,$imgtype = '') { 
+    $test_loader = Mage::getBaseDir('var') . $this->_connectorDir . 'test_img.txt';
+    
+    $pathinfo = pathinfo($img_url);
+    $img_type= $pathinfo["extension"];
+    $img_name =  md5($img_url);
+    //$img_name = $pathinfo["filename"];
+    $img = $img_name.".".$img_type;
+    $baseDir = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath().'/';
+    $local_img = strstr($img_url,Mage::getStoreConfig('web/unsecure/base_url'));
+
+    if (!file_exists($baseDir.$img) && !$local_img) {
+file_put_contents($test_loader,' here 424 prod - '.$productId.' img '.$baseDir.$img.'  ',FILE_APPEND);
+      $client = new Zend_Http_Client($img_url);
+      $content=$client->request();
+      if ($content->isError())    {
+          file_put_contents($test_loader,' here 428 '.$productId.' ',FILE_APPEND);
+        return $img_url;
+      } 
+      $file = file_put_contents($baseDir.$img,$content->getBody());
+      if ($file) {
+        $this->addProductImageQuery($productId,$img,$imgtype); 
+        file_put_contents($test_loader,' here 434 '.$productId.' ',FILE_APPEND);
+        return $img;
+      } else {
+          file_put_contents($test_loader,' here 437 '.$productId.' ',FILE_APPEND);
+        return $img_url;     
+      }
+    } else if($local_img) {
+        file_put_contents($test_loader,' here 441 '.$productId.' ',FILE_APPEND);
+      return $img_url;  
+    } else {
+        file_put_contents($test_loader,' here 443 '.$productId.' ',FILE_APPEND);
+      return $img;    
+    }   
+  }
+  
+  public function addProductImageQuery($productId,$img,$type = '') {
+    $db = Mage::getSingleton('core/resource')->getConnection('core_write');
+    $tablePrefix    = (array)Mage::getConfig()->getTablePrefix();
+    if (!empty($tablePrefix[0])) {
+      $tablePrefix = $tablePrefix[0];
+    } else {
+      $tablePrefix = '';    
+    }
+
+    $attr_query = "SELECT @product_entity_type_id   := `entity_type_id` FROM `" .$tablePrefix . "eav_entity_type` WHERE
+                                entity_type_code = 'catalog_product';
+                         SELECT @attribute_set_id         := `entity_type_id` FROM `" . $tablePrefix . "eav_entity_type` WHERE
+                                entity_type_code = 'catalog_product';
+                         SELECT @gallery := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                               `attribute_code` = 'media_gallery' AND entity_type_id = @product_entity_type_id;
+                         SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id; 
+                         SELECT @small := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                               `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id; 
+                         SELECT @thumb := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                               `attribute_code` = 'thumbnail' AND entity_type_id = @product_entity_type_id;";
+    
+    $db->query($attr_query, array(':attribute_set' =>  Mage::getModel('catalog/product')->getResource()->getEntityType()->getDefaultAttributeSetId() ));
+
+    $DefaultStoreId = Mage::app()->getWebsite()->getDefaultGroup()->getDefaultStoreId();
+
+    if (empty($type) || $type == 'image') {
+
+      $db->query(" INSERT INTO `" .$tablePrefix . "catalog_product_entity_varchar`
+                                (entity_type_id,attribute_id,store_id,entity_id,value) 
+                          VALUES(@product_entity_type_id,@base,:store_id,:entity_id,:img )
+                          ON DUPLICATE KEY UPDATE value = :img",array(
+                           ':store_id' => $DefaultStoreId,
+                           ':entity_id' => $productId,
+                           ':img' => $img));
+
+      $db->query(" INSERT INTO `" .$tablePrefix . "catalog_product_entity_varchar` 
+                                (entity_type_id,attribute_id,store_id,entity_id,value) 
+                          VALUES(@product_entity_type_id,@small,:store_id,:entity_id,:img )
+                          ON DUPLICATE KEY UPDATE value = :img",array(
+                           ':store_id' => $DefaultStoreId,
+                           ':entity_id' => $productId,
+                           ':img' => $img));
+
+      $db->query(" INSERT INTO `" .$tablePrefix . "catalog_product_entity_varchar` 
+                                (entity_type_id,attribute_id,store_id,entity_id,value) 
+                          VALUES(@product_entity_type_id,@thumb,:store_id,:entity_id,:img )
+                          ON DUPLICATE KEY UPDATE value = :img",array(
+                           ':store_id' => $DefaultStoreId,
+                           ':entity_id' => $productId,
+                           ':img' => $img));
+    }
+    $db->query(" INSERT INTO `" .$tablePrefix . "catalog_product_entity_media_gallery` (attribute_id,entity_id,value) 
+                        VALUES(@gallery,:entity_id,:img )",array(
+                           ':entity_id' => $productId,
+                           ':img' => $img ));
+    
+    $db->query(" INSERT INTO `" .$tablePrefix . "catalog_product_entity_media_gallery_value` 
+                              (value_id,store_id,label,position,disabled) 
+                        VALUES(LAST_INSERT_ID(),:store_id,'',1,0 )",array(
+                           ':store_id' => $DefaultStoreId));
+  }
+
 }
+
 ?>

@@ -139,7 +139,7 @@
 	<crontab>
 		<jobs>
 			<icecatimport>
-				<schedule><cron_expr>* * * * *</cron_expr></schedule>
+				<schedule><cron_expr>19 15 * * *</cron_expr></schedule>
 				<run><model>icecatimport/observer::load</model></run>
 			</icecatimport>
 		</jobs>

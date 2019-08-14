@@ -14,20 +14,26 @@ class Bintime_Icecatimport_Helper_Catalog_Image extends Mage_Catalog_Helper_Imag
      * @param $imageFile string
      */
     public function init(Mage_Catalog_Model_Product $product, $attributeName, $imageFile=null)
-    {   
-        
-
+    {   $baseDir = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath().'/';
         if ($attributeName == 'image' && $imageFile == null ) {
-            $imageFile = mage::getsingleton('icecatimport/import')->getLowPicUrl();
+          $imageFile = mage::getsingleton('icecatimport/import')->getLowPicUrl();
+        } else if ($attributeName == 'thumbnail' && $imageFile == null ) {
+          $imageFile =  Mage::helper('icecatimport/image')->getImage($product);
+        } else if ($attributeName == 'small_image' && $imageFile == null) {
+          $imageFile = Mage::helper('icecatimport/image')->getImage($product);
+          if (!$imageFile) {
+            $iceImport = new  Bintime_Icecatimport_Model_Import();
+            $imageFile = $iceImport->getImg($product->getId());
+          }
+        } else if (!empty($imageFile)) {
+          $iceCatModel = Mage::getSingleton('icecatimport/import');   
+          if (!strpos($imageFile,'ttp')) {
+            $imageFile = $iceCatModel->saveImg($product->getEntityId(),Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA).'catalog/product/'.$imageFile,$attributeName); 
+          } else {
+            $imageFile = $iceCatModel->saveImg($product->getEntityId(),$imageFile,$attributeName); 
+          } 
         }
-        if ($attributeName == 'thumbnail' && $imageFile == null ) {
-           $imageFile =  Mage::helper('icecatimport/image')->getImage($product);
-        }
-        
-        if ($attributeName == 'small_image' && $imageFile == null) {
-            $imageFile = Mage::helper('icecatimport/image')->getImage($product);
-        }
-     
+
         return parent::init($product, $attributeName, $imageFile);
     }
 
@@ -36,8 +42,9 @@ class Bintime_Icecatimport_Helper_Catalog_Image extends Mage_Catalog_Helper_Imag
      */
      
     public function __toString()
-    {
+    {   
         $url = parent::__toString();
+		
         if ( $this->getImageFile() && strpos( $this->getImageFile(), 'icecat.biz') && strpos($url, 'placeholder') ) {
             $url = $this->getImageFile();
         }
