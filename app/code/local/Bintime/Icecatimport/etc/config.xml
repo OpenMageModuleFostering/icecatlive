@@ -24,9 +24,8 @@
 					<product_view_media>Bintime_Icecatimport_Block_Media</product_view_media>	
 					<product_list_related>Bintime_Icecatimport_Block_Related</product_list_related>		
 					<product_list_upsell>Bintime_Icecatimport_Block_Upsell</product_list_upsell> 
-				</rewrite>
-			</catalog>		
-
+                </rewrite>
+			</catalog>	
 	</blocks>
 		<models>
             <icecatimport>
@@ -139,7 +138,7 @@
 	<crontab>
 		<jobs>
 			<icecatimport>
-				<schedule><cron_expr>19 15 * * *</cron_expr></schedule>
+				<schedule><cron_expr>0 0 * * 1</cron_expr></schedule>
 				<run><model>icecatimport/observer::load</model></run>
 			</icecatimport>
 		</jobs>

@@ -6,10 +6,17 @@
  *
  */
 class Bintime_Icecatimport_Model_Observer 
-{
+{ 
+  /**
+     * Our process ID.
+  */
+  private   $process_id = 'bintime_icecat';
+  private   $indexProcess;
+
+
   private   $errorMessage;
   private   $connection;
-
+  private   $test_connection;
   private   $freeExportURLs = 'http://data.icecat.biz/export/freeurls/export_urls_rich.txt.gz';
   private   $fullExportURLs = 'http://data.icecat.biz/export/export_urls_rich.txt.gz';
   private   $productinfoUrL = 'http://data.icecat.biz/prodid/prodid_d.txt.gz';
@@ -26,11 +33,20 @@ class Bintime_Icecatimport_Model_Observer
    * root method for uploading images to DB
    */
   public function load(){
-$testfile = Mage::getBaseDir('var') . $this->_connectorDir . 'newt.txt';
-file_put_contents($testfile, 'here obs',FILE_APPEND);
+  
+   
     $loadUrl = $this->getLoadURL();
     ini_set('max_execution_time', 0);
     try {
+      $this->indexProcess = new Mage_Index_Model_Process();
+      $this->indexProcess->setId($this->process_id);
+
+      if ($this->indexProcess->isLocked()) {
+        throw new Exception('Error! Another icecat module cron process is running!');
+      }
+	  
+	  $this->indexProcess->lockAndBlock();
+	
       $this->_productFile = $this->_prepareFile(basename($loadUrl));
       $this->_supplierFile = $this->_prepareFile(basename($this->_supplierMappingUrl));
       echo "Data file downloading started <br>";
@@ -59,6 +75,7 @@ file_put_contents($testfile, 'here obs',FILE_APPEND);
       $this->loadFileToDb();
       
       echo " Product Data File Processed Succesfully<br>";
+	  $this->indexProcess->unlock();
     } catch( Exception $e) {
       echo $e->getMessage();
       Mage::log($e->getMessage());
@@ -152,8 +169,8 @@ file_put_contents($testfile, 'here obs',FILE_APPEND);
    * @param string $productManufacturer
    */
   public function getImageURL($productSku, $productManufacturer, $productId = ''){
+
     $connection = $this->getDbConnection();
-    $testfile = Mage::getBaseDir('var') . $this->_connectorDir . 'test_img2.txt';
     try {
   
       $tableName = Mage::getSingleton('core/resource')->getTableName('icecatimport/data');
@@ -187,7 +204,7 @@ file_put_contents($testfile, 'here obs',FILE_APPEND);
       }
 
       if (empty($imageURL)){
-        $imageURL = Mage::getStoreConfig('web/unsecure/base_url').'/skin/frontend/base/default/images/catalog/product/placeholder/image.jpg';
+        $this->errorMessage = "Given product id is not present in database";
         return $imageURL;
       }
       return $imageURL;
@@ -198,6 +215,26 @@ file_put_contents($testfile, 'here obs',FILE_APPEND);
   }
   
   /**
+   * Singletong for TestDB connection
+   */
+  private function getTestDbConnection(){
+    if ($this->test_connection){
+      return $this->test_connection;
+    }
+    //$this->connection = Mage::getSingleton('core/resource')->getConnection('core_read');
+	$config  = Mage::getConfig()->getResourceConnectionConfig(Mage_Core_Model_Resource::DEFAULT_WRITE_RESOURCE);
+	$hostname = $config->host;
+    $user     = $config->username;
+    $password = $config->password;
+    $dbname   = $config->dbname;
+
+    $this->test_connection =  @mysql_connect($hostname, $user, $password, true, 128);
+    mysql_select_db($dbname,$this->test_connection);
+
+    return $this->test_connection;
+  }
+  
+  /**
    * Singletong for DB connection
    */
   private function getDbConnection(){
@@ -205,68 +242,82 @@ file_put_contents($testfile, 'here obs',FILE_APPEND);
       return $this->connection;
     }
     $this->connection = Mage::getSingleton('core/resource')->getConnection('core_read');
+
     return $this->connection;
   }
   
-  /**
+ /**
    * Upload Data file to DP
    */
   private function loadFileToDb(){
-    $connection = $this->getDbConnection();
+    $connection = $this->getTestDbConnection();
     $testfile = Mage::getBaseDir('var') . $this->_connectorDir . 'newt.txt';
     $tableName = Mage::getSingleton('core/resource')->getTableName('icecatimport/data');
     $is_info_file = strpos($this->_productFile,'prodid_d.txt');
+    $max_counter = 8000;	
     try {
-      $connection->beginTransaction();
+      mysql_query("START TRANSACTION",$connection);
       $fileHandler = fopen($this->XMLfile, "r");
       if ($fileHandler) {
         if (!$is_info_file) {
-          $connection->query("DROP TABLE IF EXISTS `".$tableName."_temp`");
-          $connection->query("
-              CREATE TABLE `".$tableName."_temp` (
-                `prod_id` varchar(255) NOT NULL,
-                `supplier_id` int(11) DEFAULT NULL,
-                `prod_name` varchar(255) DEFAULT NULL,
-                `prod_img` varchar(255) DEFAULT NULL,
-                KEY `PRODUCT_MPN` (`prod_id`),
-                KEY `supplier_id` (`supplier_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8
-          ");
+		  mysql_query("DROP TABLE IF EXISTS `".$tableName."_temp`",$connection);
+		  mysql_query("CREATE TABLE `".$tableName."_temp` (
+                       `prod_id` varchar(255) NOT NULL,
+                       `supplier_id` int(11) DEFAULT NULL,
+                       `prod_name` varchar(255) DEFAULT NULL,
+                       `prod_img` varchar(255) DEFAULT NULL,
+                        KEY `PRODUCT_MPN` (`prod_id`),
+                        KEY `supplier_id` (`supplier_id`)
+                      ) ENGINE=InnoDB DEFAULT CHARSET=utf8
+					  ",$connection);
+         
         } else {
-          $connection->query("DROP TABLE IF EXISTS `".$tableName."_products`");
-          $connection->query("
-              CREATE TABLE `".$tableName."_products` (
-                `prod_id` varchar(255) NOT NULL,
-                `prod_title`  varchar(255) DEFAULT NULL,
-                `prod_ean` varchar(255) NOT NULL,
-                KEY `prod_id`     (`prod_id`),
-                KEY `PRODUCT_EAN` (`prod_ean`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8
-          ");  
+		
+		  mysql_query("DROP TABLE IF EXISTS `".$tableName."_products`",$connection);
+		  mysql_query("CREATE TABLE `".$tableName."_products` (
+                       `prod_id` varchar(255) NOT NULL,
+                       `prod_title`  varchar(255) DEFAULT NULL,
+                       `prod_ean` varchar(255) NOT NULL,
+                        KEY `prod_id`     (`prod_id`),
+                        KEY `PRODUCT_EAN` (`prod_ean`)
+                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8
+                     ",$connection);
         }
 	if (!$is_info_file) {
-          $csvFile = Mage::getBaseDir('var') . $this->_connectorDir . 'ice_cat_temp.csv';
+          $csvFile = Mage::getBaseDir('var') . $this->_connectorDir . 'ice_cat_temp.csv'; 
         } else {
-	  $csvFile = Mage::getBaseDir('var') . $this->_connectorDir . 'ice_cat_temp_prod.csv';  
+	      $csvFile = Mage::getBaseDir('var') . $this->_connectorDir . 'ice_cat_temp_prod.csv';
         }
 		
-	$csvFile = str_replace("\\", "\\\\", $csvFile);
+	    $csvFile = str_replace("\\", "\\\\", $csvFile);
         $csvFileRes = fopen($csvFile, "w+");
-		
+        $counter = 0;
+		$sql = "";
+		$test_sql = "";
+    
         while (!feof($fileHandler)) {
           $row = fgets($fileHandler);
           $oneLine = explode("\t", $row);
           
           if ($oneLine[0]!= 'product_id' && $oneLine[0]!= '' && !$is_info_file) {
+
             try{
               
-              $prod_id      = (!empty($oneLine[1]))  ? $oneLine[1]  : '';
-              $prod_img     = (!empty($oneLine[6]))  ? $oneLine[6]  : $oneLine[5];
-              $prod_name    = (!empty($oneLine[12])) ? $oneLine[12] : '';
-              $supplier_id  = (!empty($oneLine[4])) ? $oneLine[4]   : '';
-              $line = "$prod_id\t$supplier_id\t$prod_name\t$prod_img\n";
+              $prod_id      = (!empty($oneLine[1]))  ? addslashes($oneLine[1])  : '';
+              $prod_img     = (!empty($oneLine[6]))  ? addslashes($oneLine[6])  :  addslashes($oneLine[5]);
+              $prod_name    = (!empty($oneLine[12])) ? addslashes($oneLine[12]) : '';
+              $supplier_id  = (!empty($oneLine[4]))  ? addslashes($oneLine[4])  : '';
              
-              fwrite($csvFileRes, $line);
+			  if ($counter == 1  ) {
+			    $sql = " INSERT INTO  ".$tableName."_temp ( prod_id, supplier_id, prod_name, prod_img ) VALUES(\"$prod_id\",\"$supplier_id\",\"$prod_name\",\"$prod_img\") ";
+			  } else if ($counter % $max_counter == 0) {
+			  
+			    mysql_query($sql,$connection);
+				$sql = " INSERT INTO  ".$tableName."_temp ( prod_id, supplier_id, prod_name, prod_img ) VALUES(\"$prod_id\",\"$supplier_id\",\"$prod_name\",\"$prod_img\") ";
+			  } else {
+			    $sql .= " , (\"$prod_id\",\"$supplier_id\",\"$prod_name\",\"$prod_img\") ";
+			  }
+              
             }catch(Exception $e){
               Mage::log("connector issue: {$e->getMessage()}");
             }
@@ -283,51 +334,42 @@ file_put_contents($testfile, 'here obs',FILE_APPEND);
                   $prod_ean = !empty($eans[0]) ? $eans[0] : '';    
                 }  
               }
-              $prod_id    = (!empty($oneLine[0])) ? str_replace("\t",'',$oneLine[0])           : '';  
-              $brand      = (!empty($oneLine3))   ? str_replace("\t",'',$oneLine[3]. '|')      : '';
-              $model      = (!empty($oneLine12))  ? str_replace("\t",'',$oneLine[12].'|')      : '';
-              $family     = (!empty($oneLine21))  ? preg_replace("/\s+/", "",$oneLine[21].'|') : ''; 
-              $line = "$prod_id\t$brand$family$model\t$prod_ean\n";
-              fwrite($csvFileRes, $line);
+              $prod_id    = (!empty($oneLine[0])) ? addslashes(str_replace("\t",'',$oneLine[0]))           : '';  
+              $brand      = (!empty($oneLine3))   ? addslashes(str_replace("\t",'',$oneLine[3]. '|'))      : '';
+              $model      = (!empty($oneLine12))  ? addslashes(str_replace("\t",'',$oneLine[12].'|'))      : '';
+              $family     = (!empty($oneLine21))  ? addslashes(preg_replace("/\s+/", "",$oneLine[21].'|')) : ''; 
+              
+              if ($counter == 1) {
+			    $sql = " INSERT INTO  ".$tableName."_products ( prod_id, prod_title,prod_ean ) VALUES(\"$prod_id\",\"$brand$family$model\",\"$prod_ean\") ";
+			  } else if ($counter % $max_counter == 0) {
+			  
+				mysql_query($sql,$connection);
+				$sql = " INSERT INTO  ".$tableName."_products ( prod_id, prod_title,prod_ean ) VALUES(\"$prod_id\",\"$brand$family$model\",\"$prod_ean\") ";
+			  } else {
+			    $sql .= " , (\"$prod_id\",\"$brand$family$model\",\"$prod_ean\") ";
+			  }
             }catch(Exception $e){
               Mage::log("connector issue: {$e->getMessage()}");
             }  
           }
+		  $counter++;
         }
-		
-		$connection->commit();
-        $config  = Mage::getConfig()->getResourceConnectionConfig(Mage_Core_Model_Resource::DEFAULT_WRITE_RESOURCE);
-        $sql_file = Mage::getBaseDir('var') . $this->_connectorDir . 'test.sql';
+		if (!$is_info_file) {
+		  mysql_query($sql,$connection);
+	      mysql_query("DROP TABLE IF EXISTS `".$tableName."_old`",$connection);
+		  mysql_query("rename table `".$tableName."` to `".$tableName."_old`, `".$tableName."_temp` to ".$tableName,$connection);
+          mysql_query("COMMIT",$connection);
+		} else{
+		  mysql_query($sql,$connection);
+          mysql_query("COMMIT",$connection);
+		}
 
-	$hostname = $config->host;
-        $user     = $config->username;
-        $password = $config->password;
-        $dbname   = $config->dbname;
-		  
-        // write csv file into temp table
-        if (!$is_info_file) {
-		  $sql = 'LOAD DATA LOCAL INFILE "'.$csvFile.'" INTO TABLE '.$tableName.'_temp ( prod_id, supplier_id, prod_name, prod_img );';
-		  file_put_contents($sql_file,$sql);
-		  $res = system("mysql -u$user -p$password -h$hostname $dbname < \"$sql_file\" ");
-		  file_put_contents($testfile, "mysql -u$user -p$password -h$hostname $dbname < $sql_file",FILE_APPEND);
-          //$connection->query('LOAD DATA LOCAL INFILE "'.$csvFile.'" INTO TABLE '.$tableName.'_temp ( prod_id, supplier_id, prod_name, prod_img )');
-          $connection->query("DROP TABLE IF EXISTS `".$tableName."_old`");
-          $connection->query("rename table `".$tableName."` to `".$tableName."_old`, `".$tableName."_temp` to ".$tableName);
-          $connection->commit();
-          fclose($fileHandler);
-          unlink($csvFile);
-        } else {   
-          $sql = 'LOAD DATA LOCAL INFILE "'.$csvFile.'" INTO TABLE '.$tableName.'_products ( prod_id, prod_title,prod_ean );';   
-		  file_put_contents($sql_file,$sql);
-          $res = system("mysql -u$user -p$password -h$hostname $dbname < \"$sql_file\" ");
-		  file_put_contents($testfile, "mysql -u$user -p$password -h$hostname $dbname < $sql_file", FILE_APPEND);
-          $connection->commit();
-          fclose($fileHandler);
-          unlink($csvFile);  
-        }
+		fclose($fileHandler);
+
+
 	  }
     } catch (Exception $e) {
-      $connection->rollBack();
+      mysql_query("ROLLBACK",$connection);
       throw new Exception("Icecat Import Terminated: {$e->getMessage()}");
     }
   }

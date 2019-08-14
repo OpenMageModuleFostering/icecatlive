@@ -76,7 +76,7 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
             "vendor"  => $vendorName,
             "output"  => 'productxml'
           ));
-		 
+
           if ($this->parseXml($resultString)) {
             if (!$this->checkIcecatResponse()) {
               $successRespondByMPNVendorFlag = true; 
@@ -92,7 +92,8 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
               'lang'    => $locale,
               'output'  => 'productxml'
             ));
-           
+
+          
             if (!$this->parseXml($resultString)) {
               $error = true;
               $this->simpleDoc = null;
@@ -134,6 +135,7 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
 
   private function _getIceCatData($userName, $userPass, $dataUrl, $productAttributes){
     try{
+	
       $webClient = new Zend_Http_Client();
       $webClient->setUri($dataUrl);
       $webClient->setMethod(Zend_Http_Client::GET);
@@ -356,7 +358,9 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
     $this->_manualPdfUrl          = (string)$productTag->ProductDescription['ManualPDFURL'];
     $this->_pdfUrl                = (string)$productTag->ProductDescription['PDFURL'];
     $this->_multimedia            = $productTag->ProductMultimediaObject->MultimediaObject;
-    $baseDir = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath().'/';	
+
+    $Imagepriority = Mage::getStoreConfig('icecat_root/icecat/image_priority');
+    if ($Imagepriority != 'Db') {
 	if (!empty($productTag["HighPic"])) {
 	  $this->highPicUrl             = $this->saveImg($this->entityId,(string)$productTag["HighPic"]); 
 	} else if (!empty($productTag["LowPic"])) {
@@ -364,7 +368,7 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
 	} else {
 	  $this->thumb                  = $this->saveImg($this->entityId,(string)$productTag["ThumbPic"],'thumb');
 	}
-    
+    }
     $this->productName            = (string)$productTag["Title"];
     $this->productId              = (string)$productTag['Prod_id'];
     $this->vendor                 = (string)$productTag->Supplier['Name'];
@@ -412,38 +416,78 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
    * @param string $img_type
    */
   public function saveImg($productId,$img_url,$imgtype = '') { 
-    $test_loader = Mage::getBaseDir('var') . $this->_connectorDir . 'test_img.txt';
-    
+   
     $pathinfo = pathinfo($img_url);
     $img_type= $pathinfo["extension"];
-    $img_name =  md5($img_url);
-    //$img_name = $pathinfo["filename"];
+
+    if (strpos($img_url,'high') > 0) {
+      $img_name = str_replace("http://images.icecat.biz/img/norm/high/","",$img_url);
+      $img_name = md5($img_name);
+    } else if (strpos($img_url,'low') > 0) {
+      $img_name = str_replace("http://images.icecat.biz/img/norm/low/","",$img_url);
+      $img_name = md5($img_name);
+    } else {
+      $img_name =  md5($img_url);
+    }
+
     $img = $img_name.".".$img_type;
     $baseDir = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath().'/';
     $local_img = strstr($img_url,Mage::getStoreConfig('web/unsecure/base_url'));
 
     if (!file_exists($baseDir.$img) && !$local_img) {
-file_put_contents($test_loader,' here 424 prod - '.$productId.' img '.$baseDir.$img.'  ',FILE_APPEND);
       $client = new Zend_Http_Client($img_url);
       $content=$client->request();
       if ($content->isError())    {
-          file_put_contents($test_loader,' here 428 '.$productId.' ',FILE_APPEND);
         return $img_url;
       } 
       $file = file_put_contents($baseDir.$img,$content->getBody());
       if ($file) {
         $this->addProductImageQuery($productId,$img,$imgtype); 
-        file_put_contents($test_loader,' here 434 '.$productId.' ',FILE_APPEND);
         return $img;
       } else {
-          file_put_contents($test_loader,' here 437 '.$productId.' ',FILE_APPEND);
         return $img_url;     
       }
     } else if($local_img) {
-        file_put_contents($test_loader,' here 441 '.$productId.' ',FILE_APPEND);
       return $img_url;  
     } else {
-        file_put_contents($test_loader,' here 443 '.$productId.' ',FILE_APPEND);
+	  
+	  $db = Mage::getSingleton('core/resource')->getConnection('core_write');
+      $tablePrefix    = (array)Mage::getConfig()->getTablePrefix();
+	  if (!empty($tablePrefix[0])) {
+        $tablePrefix = $tablePrefix[0];
+      } else {
+        $tablePrefix = '';    
+      }
+	  $attr_query = "SELECT @product_entity_type_id   := `entity_type_id` FROM `" .$tablePrefix . "eav_entity_type` WHERE
+                                entity_type_code = 'catalog_product';
+                         SELECT @attribute_set_id         := `entity_type_id` FROM `" . $tablePrefix . "eav_entity_type` WHERE
+                                entity_type_code = 'catalog_product';
+                         SELECT @gallery := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                               `attribute_code` = 'media_gallery' AND entity_type_id = @product_entity_type_id;
+                         SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id; 
+                         SELECT @small := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                               `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id; 
+                         SELECT @thumb := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                               `attribute_code` = 'thumbnail' AND entity_type_id = @product_entity_type_id;";
+
+	  $attr_set = Mage::getModel('catalog/product')->getResource()->getEntityType()->getDefaultAttributeSetId();
+	 
+      $db->query($attr_query, array(':attribute_set' =>  $attr_set));
+	  
+	  $img_check = $db->fetchAll("SELECT COUNT(*) FROM `" .$tablePrefix . "catalog_product_entity_varchar` 
+                                  WHERE attribute_id IN (@base ,@small,@thumb)
+							      AND entity_id =:entity_id AND value =:img ",array(
+                                     ':entity_id' => $productId,
+                                     ':img' => $img));
+     
+      $gal_check = $db->fetchAll("SELECT COUNT(*) FROM `" .$tablePrefix . "catalog_product_entity_media_gallery` 
+                                  WHERE attribute_id = @gallery AND entity_id =:entity_id AND value =:img ",array(
+                                       ':entity_id' => $productId,
+                                       ':img' => $img));
+	  if ((isset($img_check[0]["COUNT(*)"]) && isset($gal_check[0]["COUNT(*)"])) 
+	         && ($img_check[0]["COUNT(*)"] == 0 && $gal_check[0]["COUNT(*)"] == 0)) {
+	     $this->addProductImageQuery($productId,$img,$imgtype);
+	  }
       return $img;    
     }   
   }
@@ -499,6 +543,9 @@ file_put_contents($test_loader,' here 424 prod - '.$productId.' img '.$baseDir.$
                            ':entity_id' => $productId,
                            ':img' => $img));
     }
+
+    
+
     $db->query(" INSERT INTO `" .$tablePrefix . "catalog_product_entity_media_gallery` (attribute_id,entity_id,value) 
                         VALUES(@gallery,:entity_id,:img )",array(
                            ':entity_id' => $productId,
@@ -508,6 +555,14 @@ file_put_contents($test_loader,' here 424 prod - '.$productId.' img '.$baseDir.$
                               (value_id,store_id,label,position,disabled) 
                         VALUES(LAST_INSERT_ID(),:store_id,'',1,0 )",array(
                            ':store_id' => $DefaultStoreId));
+  
+    /*$rows = $db->fetchAll("SELECT value_id FROM `" .$tablePrefix . "catalog_product_entity_media_gallery` 
+                           WHERE attribute_id = @gallery AND entity_id =:entity_id ",array(
+                             ':entity_id' => $productId));
+    if (count($rows > 0)) {
+        echo '<pre>'; var_dump($rows); echo " ============ ";
+    }*/
+
   }
 
 }

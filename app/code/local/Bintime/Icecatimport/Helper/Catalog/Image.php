@@ -14,7 +14,16 @@ class Bintime_Icecatimport_Helper_Catalog_Image extends Mage_Catalog_Helper_Imag
      * @param $imageFile string
      */
     public function init(Mage_Catalog_Model_Product $product, $attributeName, $imageFile=null)
-    {   $baseDir = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath().'/';
+    {   
+        $current_page = Mage::app()->getFrontController()->getRequest()->getControllerName();
+        $url = Mage::helper('core/url')->getCurrentUrl();
+        $is_gallery = (int) strpos($url,'catalog/product/gallery');
+        $Imagepriority = Mage::getStoreConfig('icecat_root/icecat/image_priority');
+        if ($Imagepriority == 'Db' || (($attributeName == 'thumbnail' && !empty($imageFile)
+                                          && $current_page == 'product' ) || ($is_gallery > 0)) ) {
+          return parent::init($product, $attributeName, $imageFile);
+        }
+        
         if ($attributeName == 'image' && $imageFile == null ) {
           $imageFile = mage::getsingleton('icecatimport/import')->getLowPicUrl();
         } else if ($attributeName == 'thumbnail' && $imageFile == null ) {
@@ -26,7 +35,7 @@ class Bintime_Icecatimport_Helper_Catalog_Image extends Mage_Catalog_Helper_Imag
             $imageFile = $iceImport->getImg($product->getId());
           }
         } else if (!empty($imageFile)) {
-          $iceCatModel = Mage::getSingleton('icecatimport/import');   
+          $iceCatModel = Mage::getSingleton('icecatimport/import');
           if (!strpos($imageFile,'ttp')) {
             $imageFile = $iceCatModel->saveImg($product->getEntityId(),Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA).'catalog/product/'.$imageFile,$attributeName); 
           } else {

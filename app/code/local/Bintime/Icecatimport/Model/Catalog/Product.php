@@ -7,11 +7,19 @@
 class Bintime_Icecatimport_Model_Catalog_Product extends Mage_Catalog_Model_Product 
 {
 	
-  public function getName(){ 
+  public function getName(){
+      
+   $productNamePriority = Mage::getStoreConfig('icecat_root/icecat/name_priority');
+   if ($productNamePriority=='Db') {
+     return parent::getName(); 
+   }
+   
    try {
+      self::$_product_source = '';
       $connection = Mage::getSingleton('core/resource')->getConnection('core_read');
       $manufacturerId = $this->getData(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
       $mpn = $this->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
+
       $attributeInfo = Mage::getResourceModel('eav/entity_attribute_collection')
         ->setCodeFilter(Mage::getStoreConfig('icecat_root/icecat/manufacturer'))
         ->setEntityTypeFilter($this->getResource()->getTypeId())
@@ -31,11 +39,12 @@ class Bintime_Icecatimport_Model_Catalog_Product extends Mage_Catalog_Model_Prod
         ->from(array('connector' => $tableName), new Zend_Db_Expr('connector.prod_title'))
         ->where('connector.prod_id = ? ', $mpn);
       $icecatName = $connection->fetchOne($selectCondition);
+	  
     } catch (Exception $e) {
       Mage::log('Icecat getName error'.$e);
     }
 
-    $product_name = $icecatName ? str_replace("|"," ",$icecatName) : $this->getData('name');
+    $product_name = !empty($icecatName) ? str_replace("|"," ",$icecatName) : $this->getData('name');
     return $product_name; 
   }
 
@@ -64,7 +73,7 @@ class Bintime_Icecatimport_Model_Catalog_Product extends Mage_Catalog_Model_Prod
   } 
 
   public function getDescription() {
-      
+
     if( !isset(self::$_product_source) ) {
        $this->checkIcecatProdDescription();
     }
@@ -106,8 +115,9 @@ class Bintime_Icecatimport_Model_Catalog_Product extends Mage_Catalog_Model_Prod
       $descr[1] = false;
       
       $descr[0] = $iceImport->getProductDescription($mpn, $manufacturer, $locale, $userLogin, $userPass, $entityId, $ean_code);
-      
+     
       if (!empty($iceImport->simpleDoc)){
+	  
         $productTag = $iceImport->simpleDoc->Product;
         $descr[1] = (string) $productTag->ProductDescription['ShortDesc'];   
       } else if(!empty($descr[0]) && $attributeName == 'short_description') {
@@ -118,11 +128,14 @@ class Bintime_Icecatimport_Model_Catalog_Product extends Mage_Catalog_Model_Prod
       if($descr[0] == false and $descr[1] == false) {
         self::$_product_source = 'DB';
       } else if ($attributeName == 'short_description') {
-	self::$_product_source = ''; 
-	return $descr[1];
+        self::$_product_source = ''; 
+        return $descr[1];
       } else if ($attributeName == 'name') {
-	return $iceImport->getProductName();  
-      }
+	    self::$_product_source = ''; 
+        return $iceImport->getProductName();
+      } else {
+	    self::$_product_source = ''; 
+	  }
   }
 
 

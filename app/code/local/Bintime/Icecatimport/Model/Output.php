@@ -56,7 +56,7 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
 	  }
 	}
     $prod_source = Bintime_Icecatimport_Model_Catalog_Product::$_product_source;
-
+	  
     if( $prod_source == 'DB' && empty($descr) ) {
         $dbDescriptionPriority = true;
         $dbShortDescriptionPriority = true;
@@ -67,13 +67,8 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
        if ($attributeName == 'short_description') {
          $attributeHtml = $product->getData('short_description');
        }
-	   
-	   if ($attributeName == 'description' && $attributeHtml == 1) {
-	      $attributeHtml = $product->getData('description');
-	   }
-         return parent::productAttribute($product, $attributeHtml, $attributeName);     
+       return parent::productAttribute($product, $attributeHtml, $attributeName);     
     }
-	
     $this->iceCatModel = Mage::getSingleton('icecatimport/import');
 
     if ($this->isFirstTime){ 
@@ -87,7 +82,6 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
     }
 	
     if ($this->error){
-	 
       if ($attributeName != 'description' && $attributeName != 'short_description') {
         return parent::productAttribute($product, $attributeHtml, $attributeName); 
       } else {
@@ -116,7 +110,6 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
     }
 
     if ($attributeName == 'short_description' && !$dbShortDescriptionPriority ) {
-	
 	  $icecat_descr = $this->iceCatModel->getShortProductDescription();
       if (!empty($descr)) {
         return $descr;
@@ -127,9 +120,7 @@ class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
         return parent::productAttribute($product, $attributeHtml, $attributeName);
       }
     }
-	
     if ($attributeName == 'description' && !$dbDescriptionPriority) {
-	  
       $icecat_full_descr = $this->iceCatModel->getFullProductDescription();
       if (!empty($icecat_full_descr)) {
         return str_replace("\\n", "<br>",$icecat_full_descr);
