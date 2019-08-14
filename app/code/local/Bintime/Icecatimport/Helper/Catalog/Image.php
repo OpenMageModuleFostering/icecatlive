@@ -21,7 +21,6 @@ class Bintime_Icecatimport_Helper_Catalog_Image extends Mage_Catalog_Helper_Imag
             $imageFile = mage::getsingleton('icecatimport/import')->getLowPicUrl();
         }
         if ($attributeName == 'thumbnail' && $imageFile == null ) {
-              //  $imageFile = $product->getData($attributeName);        
            $imageFile =  Mage::helper('icecatimport/image')->getImage($product);
         }
         

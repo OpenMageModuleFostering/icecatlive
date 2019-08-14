@@ -38,7 +38,7 @@ class Bintime_Icecatimport_Block_Upsell extends Mage_Catalog_Block_Product_List_
             'collection'    => $this->_itemCollection,
             'limit'         => $this->getItemLimit()
         ));
-        //TODO what  this code do?
+        
         foreach ($this->_itemCollection as $product) {
             $product->setDoNotUseCategoryId(true);
         }

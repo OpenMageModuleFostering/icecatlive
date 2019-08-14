@@ -20,4 +20,5 @@ $installer->run("
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Bintime Connector supplier mapping table';
 	
 ");
+
 $installer->endSetup();

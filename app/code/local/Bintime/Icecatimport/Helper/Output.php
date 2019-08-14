@@ -1,101 +1,109 @@
 <?php
 class Bintime_Icecatimport_Helper_Output extends Mage_Catalog_Helper_Output
 {
-	
-	private $iceCatModel;
-    private $error = false;
-    private $systemError;
-    /**
-     * @var isFirstTime spike for getProductDescription that is called many times from template
-     */
-    private $isFirstTime = true;
-	
-	   /**
-     * Prepare product attribute html output
-     *
-     * @param   Mage_Catalog_Model_Product $product
-     * @param   string $attributeHtml
-     * @param   string $attributeName
-     * @return  string
-     */
-     
-    public function productAttribute($product, $attributeHtml, $attributeName)
-    {		
-		if (!mage::registry('product')) {
-            return parent::productAttribute($product, $attributeHtml, $attributeName);
-        }
 
-	$this->iceCatModel = Mage::getSingleton('icecatimport/import');
-	if($this->isFirstTime){ 
-		$helper = Mage::helper('icecatimport/getdata');
-		$helper->getProductDescription($product);
-		
-		if($helper->hasError())
-		{
-			$this->error = true;
-		}
-		$this->isFirstTime = false;
-        
-	}
+  private $iceCatModel;
+  private $error = false;
+  private $systemError;
 
-    if($this->error)
-    {
-        return parent::productAttribute($product, $attributeHtml, $attributeName); 
-    } 
-	$id = $product->getData('entity_id');
+  /**
+   * @var isFirstTime spike for getProductDescription that is called many times from template
+   */
+  private $isFirstTime = true;
 
-    
-       if($attributeName == 'name')
-       { 
+  /**
+   * Prepare product attribute html output
+   *
+   * @param   Mage_Catalog_Model_Product $product
+   * @param   string $attributeHtml
+   * @param   string $attributeName
+   * @return  string
+   */
+  public function productAttribute($product, $attributeHtml, $attributeName){		
 
-        //if we on product page then mage::registry('product' exist
-        if ($product->getId() == $this->iceCatModel->entityId && $name = $product->getData('brand_name') . ' ' . $this->iceCatModel->getProductName()) {
-            return $name;
-        }
-            
-		   $manufacturerId = Mage::getStoreConfig('icecat_root/icecat/manufacturer');
-           $mpn = Mage::getStoreConfig('icecat_root/icecat/sku_field');
-		   $collection = Mage::getResourceModel('catalog/product_collection');
-		   $collection->addAttributeToSelect($manufacturerId)->addAttributeToSelect($mpn)
-		   ->addAttributeToSelect('name')
-		   ->addAttributeToFilter('entity_id', array('eq' => $id));
-		   $product = $collection->getFirstItem() ;
-		   return $product->getName();
+    if (!mage::registry('product')) {
+      return parent::productAttribute($product, $attributeHtml, $attributeName);
+    }
 
-	   }
-	    
-	   if($attributeName == 'short_description')
-	   {
-		   return $this->iceCatModel->getShortProductDescription();
-	   }
-	   if($attributeName == 'description')
-	   {
-		   return str_replace("\\n", "<br>",$this->iceCatModel->getFullProductDescription());
-	   }
-	   	     else return parent::productAttribute($product, $attributeHtml, $attributeName);
-   }
+    $productDescriptionPriority = Mage::getStoreConfig('icecat_root/icecat/descript_priority');
+    $dbDescriptionPriority = false;
+     if ($productDescriptionPriority == 'Db' &&
+         ( $attributeName == 'description' || $attributeName == 'short_description')) {
+       $dbDescriptionPriority = true;     
+    }
    
-   public function getWarrantyInfo(){
-     return $this->iceCatModel->getWarrantyInfo();
-   }
-   public function getShortSummaryDescription(){
-     return $this->iceCatModel->getShortSummaryDescription();
-   }
-   public function getLongSummaryDescription(){
-     return $this->iceCatModel->getLongSummaryDescription();
-   }
+    if ($dbDescriptionPriority) {
+       return parent::productAttribute($product, $attributeHtml, $attributeName);     
+    }
 
-   public function getManualPDF(){
-     return $this->iceCatModel->getManualPDF();
-   }
+    $this->iceCatModel = Mage::getSingleton('icecatimport/import');
+    if ($this->isFirstTime){ 
+      $helper = Mage::helper('icecatimport/getdata');
+      $helper->getProductDescription($product);
 
-   public function getPDF(){
-     return $this->iceCatModel->getPDF();
-   }
+      if ($helper->hasError() && !$dbDescriptionPriority) {
+        $this->error = true;
+      }
+      $this->isFirstTime = false;
+    }
 
-   public function getIceCatMedia(){
-     $media = (array)$this->iceCatModel->getIceCatMedia();
-     return (array_key_exists('@attributes', $media)) ? $media['@attributes'] : array();
-   }
+    if ($this->error){
+      if ($attributeName != 'description' && $attributeName != 'short_description') {
+        return parent::productAttribute($product, $attributeHtml, $attributeName); 
+      } else {
+        return '';
+      }
+      
+    } 
+    $id = $product->getData('entity_id');
+    if ($attributeName == 'name'){ 
+      //if we on product page then mage::registry('product') exist
+      if ($product->getId() == $this->iceCatModel->entityId && $name = $product->getData('brand_name') . ' ' . $this->iceCatModel->getProductName()) {
+        return $name;
+      }
+      $manufacturerId = Mage::getStoreConfig('icecat_root/icecat/manufacturer');
+      $mpn = Mage::getStoreConfig('icecat_root/icecat/sku_field');
+      $collection = Mage::getResourceModel('catalog/product_collection');
+      $collection->addAttributeToSelect($manufacturerId)->addAttributeToSelect($mpn)
+      ->addAttributeToSelect('name')
+      ->addAttributeToFilter('entity_id', array('eq' => $id));
+      $product = $collection->getFirstItem() ;
+      return $product->getName();
+    }
+
+    if ($attributeName == 'short_description') {
+      return $this->iceCatModel->getShortProductDescription();
+    }
+    if ($attributeName == 'description') {
+      return str_replace("\\n", "<br>",$this->iceCatModel->getFullProductDescription());
+    }
+    return parent::productAttribute($product, $attributeHtml, $attributeName);
+  } 
+
+
+  public function getWarrantyInfo(){
+    return $this->iceCatModel->getWarrantyInfo();
+  }
+
+  public function getShortSummaryDescription(){
+    return $this->iceCatModel->getShortSummaryDescription();
+  }
+
+  public function getLongSummaryDescription(){
+    return $this->iceCatModel->getLongSummaryDescription();
+  }
+
+  public function getManualPDF(){
+    return $this->iceCatModel->getManualPDF();
+  }
+
+  public function getPDF(){
+    return $this->iceCatModel->getPDF();
+  }
+
+  public function getIceCatMedia(){
+    $media = (array)$this->iceCatModel->getIceCatMedia();
+    return (array_key_exists('@attributes', $media)) ? $media['@attributes'] : array();
+  }
 }
 ?>
