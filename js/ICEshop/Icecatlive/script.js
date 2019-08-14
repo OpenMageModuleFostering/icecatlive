@@ -2,7 +2,7 @@
 jQuery.noConflict();
 
 //script which starts after page is loaded
-jQuery(document).ready(function () {
+jQuery(document).ready(function (jQuery) {
 
     jQuery('div#content').on('click', 'a.section-toggler-icecatlive', function(e){
         toggleIcecatliveFieldset(this);
@@ -49,7 +49,7 @@ function buildIceshopInfo()
             .text('Your browser doesn\'t work with iframe elements');
         iceshop_info_iframe_el.appendTo(wrapper);
         jQuery('div.entry-edit').closest('div.main-col-inner').find('div.content-header').find('table td.form-buttons').hide();
-        jQuery('div.content-header-floating').find('table td.form-buttons').html(hide);
+        jQuery('div.content-header-floating').find('table td.form-buttons').html('');
     }
 }
 

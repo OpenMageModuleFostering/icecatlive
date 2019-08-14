@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Iceshop_Icecatlive>
-            <version>1.7.5</version>
+            <version>1.7.6</version>
         </Iceshop_Icecatlive>
     </modules>
     <default>
@@ -10,6 +10,10 @@
         <icecatlive_icecat_dataurl>
             <icecat_dataurl><![CDATA[https://data.icecat.biz/xml_s3/xml_server3.cgi]]></icecat_dataurl>
         </icecatlive_icecat_dataurl>
+
+        <icecatlive_icecat_statistics_url>
+            <icecat_url><![CDATA[https://api.iceshop.biz/api.php?module=icecat_live]]></icecat_url>
+        </icecatlive_icecat_statistics_url>
 
         <icecatlive_cache_path>
             <cache_path><![CDATA[/iceshop/icecatlive/cache/]]></cache_path>

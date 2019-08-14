@@ -561,7 +561,7 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
         $check_module = $this->getModulesCollection('Iceshop_Icecatlive');
         $check_module = $check_module->getLastItem()->getData();
 
-        if(!is_writable(Mage::getBaseDir('var') . ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_cache_path')->cache_path)){
+        if(!is_writable(Mage::getBaseDir('var'))){
             $problems['extension']['permission_error'][] =  ''. Mage::getBaseDir('var') . ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_cache_path')->cache_path;
             $count++;
         }

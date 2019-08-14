@@ -26,6 +26,9 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
         $collection->getSelect()->joinLeft( array('pt'=>Mage::getSingleton('core/resource')->getTableName('icecatlive/products_titles')),
                 'entity_id = pt.prod_id', array('*'))->where("pt.prod_id IS NULL");
 
+        $mpn = Mage::getStoreConfig('icecat_root/icecat/sku_field');
+        $ean_code = Mage::getStoreConfig('icecat_root/icecat/ean_code');
+
         if($this->checkExistingAttribute('catalog_product', 'sku')){
             $collection->addAttributeToSelect('sku');
         }
@@ -52,10 +55,10 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
                     $adminStore
                 );
             }
-            if($this->checkExistingAttribute('catalog_product', 'mpn')){
+            if($this->checkExistingAttribute('catalog_product', $mpn)){
                 $collection->joinAttribute(
-                    'mpn',
-                    'catalog_product/mpn',
+                    $mpn,
+                    "catalog_product/{$mpn}",
                     'entity_id',
                     null,
                     'inner',
@@ -63,10 +66,10 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
                 );
             }
 
-            if($this->checkExistingAttribute('catalog_product', 'ean')){
+            if($this->checkExistingAttribute('catalog_product', $ean_code)){
                 $collection->joinAttribute(
-                    'ean',
-                    'catalog_product/ean',
+                    $ean_code,
+                    "catalog_product/{$ean_code}",
                     'entity_id',
                     null,
                     'inner',
@@ -88,11 +91,11 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
               $collection->addAttributeToSelect('price');
           }
 
-          if($this->checkExistingAttribute('catalog_product', 'ean')){
-              $collection->joinAttribute('ean', 'catalog_product/ean', 'entity_id', null, 'inner');
+          if($this->checkExistingAttribute('catalog_product', $ean_code)){
+              $collection->joinAttribute($ean_code, "catalog_product/{$ean_code}", 'entity_id', null, 'inner');
           }
-          if($this->checkExistingAttribute('catalog_product', 'mpn')){
-              $collection->joinAttribute('mpn', 'catalog_product/mpn', 'entity_id', null, 'inner');
+          if($this->checkExistingAttribute('catalog_product', $mpn)){
+              $collection->joinAttribute($mpn, "catalog_product/{$mpn}", 'entity_id', null, 'inner');
           }
           if($this->checkExistingAttribute('catalog_product', 'status')){
               $collection->joinAttribute('status', 'catalog_product/status', 'entity_id', null, 'inner');
@@ -153,21 +156,21 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
             ));
         }
 
-        if($this->checkExistingAttribute('catalog_product', 'mpn')){
-            $this->addColumn('mpn',
+        if($this->checkExistingAttribute('catalog_product', $mpn)){
+            $this->addColumn($mpn,
               array(
-                  'header'=> Mage::helper('catalog')->__('Manufacturer product number'),
+                  'header'=> Mage::helper('catalog')->__('MPN'),
                   'width' => '80px',
-                  'index' => 'mpn',
+                  'index' => $mpn,
           ));
         }
 
-        if($this->checkExistingAttribute('catalog_product', 'ean')){
-            $this->addColumn('ean',
+        if($this->checkExistingAttribute('catalog_product', $ean_code)){
+            $this->addColumn($ean_code,
                 array(
-                    'header'=> Mage::helper('catalog')->__('European Article Number '),
+                    'header'=> Mage::helper('catalog')->__('EAN'),
                     'width' => '80px',
-                    'index' => 'ean',
+                    'index' => $ean_code,
             ));
         }
 

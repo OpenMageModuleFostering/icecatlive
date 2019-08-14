@@ -168,4 +168,43 @@ class Iceshop_Icecatlive_Block_Attributes extends Mage_Core_Block_Template
         return false;
     }
 
+    /**
+     * Return url to send icecat statistics
+     * @param Objeckt $_product
+     * @return string
+     */
+    public function getIcecatStatisticsUrl($_product){
+
+        $config_icecat_url = ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_icecat_statistics_url')->icecat_url;
+        $icecat_statistics_send_url = $config_icecat_url;
+        try{
+            $store_id = Mage::app()->getStore()->getStoreId();
+            $mpn = Mage::getStoreConfig('icecat_root/icecat/sku_field');
+            $ean_code = Mage::getStoreConfig('icecat_root/icecat/ean_code');
+            $manufacturer = Mage::getStoreConfig('icecat_root/icecat/manufacturer');
+            $icecat_statistics_mpn = Mage::getResourceModel('catalog/product')->getAttributeRawValue($_product->getId(), $mpn, $store_id);
+            $icecat_statistics_brand_name = Mage::getResourceModel('catalog/product')->getAttributeRawValue($_product->getId(), $manufacturer, $store_id);
+            $icecat_statistics_category = '';
+              $cats = $_product->getCategoryIds();
+              foreach ($cats as $category_id) {
+                $_cat = Mage::getModel('catalog/category')->setStoreId(Mage::app()->getStore()->getId())->load($category_id);
+                    $icecat_statistics_category .= $_cat->getName() . ';';
+                }
+            $icecat_statistics_stock = $_product->getStockItem()->getQty();
+            $icecat_statistics_ean = Mage::getResourceModel('catalog/product')->getAttributeRawValue($_product->getId(), $ean_code, $store_id);
+            $icecat_statistics_price = Mage::getResourceModel('catalog/product')->getAttributeRawValue($_product->getId(), 'price', $store_id);
+
+            $icecat_statistics_send_url .= '&mpn='.  base64_encode($icecat_statistics_mpn);
+            $icecat_statistics_send_url .= '&ean='.  base64_encode($icecat_statistics_ean);
+            $icecat_statistics_send_url .= '&category='.base64_encode($icecat_statistics_category);
+            $icecat_statistics_send_url .= '&brand_name='.base64_encode($icecat_statistics_brand_name);
+            $icecat_statistics_send_url .= '&stock='.base64_encode($icecat_statistics_stock);
+            $icecat_statistics_send_url .= '&price='.base64_encode($icecat_statistics_price);
+            $icecat_statistics_send_url .= '&icecat_extension='.base64_encode('icecatlive');
+
+            return $icecat_statistics_send_url;
+        } catch (Exception $e){
+            return $icecat_statistics_send_url;
+        }
+    }
 }

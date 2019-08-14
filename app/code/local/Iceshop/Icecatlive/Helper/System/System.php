@@ -15,23 +15,32 @@ class Iceshop_Icecatlive_Helper_System_System extends Mage_Core_Helper_Abstract
      * @param  string $dir Direction to sort
      * @return array  Sorted array
      */
-    public function sortMultiDimArr($arr, $key, $dir = 'ASC')
-    {
-        foreach ($arr as $k => $v) {
-            $b[$k] = strtolower($v[$key]);
-        }
+      public function sortMultiDimArr($arr, $key, $dir = 'ASC') {
 
-        if ($dir == 'ASC') {
-            asort($b);
-        } else {
-            arsort($b);
-        }
-        foreach ($b as $key => $val) {
-            $c[] = $arr[$key];
-        }
+      foreach ($arr as $k => $v) {
+          if (isset($v[$key])) {
+              $b[$k] = strtolower($v[$key]);
+          }
+      }
 
-        return $c;
+      if (!empty($b)) {
+          if ($dir == 'ASC') {
+              asort($b);
+          } else {
+              arsort($b);
+          }
+
+          foreach ($b as $key => $val) {
+              if (isset($arr[$key])) {
+                  $c[] = $arr[$key];
+              }
+          }
+          return $c;
+      } else {
+        return $arr;
+      }
     }
+
 
     /**
      * Activate/Deactivate a Magento module

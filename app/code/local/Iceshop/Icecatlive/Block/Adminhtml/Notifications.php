@@ -29,6 +29,6 @@ class Iceshop_Icecatlive_Block_Adminhtml_Notifications extends Mage_Adminhtml_Bl
      */
     public function getManageUrl()
     {
-        return Mage::helper("adminhtml")->getUrl("*/system_config/edit", array('section' => 'icecatlive_check_system'));
+      return Mage::helper("adminhtml")->getUrl("*/system_config/edit", array('section' => 'icecatlive_information'));
     }
 }
