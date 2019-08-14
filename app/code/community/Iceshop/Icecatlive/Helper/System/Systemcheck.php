@@ -600,7 +600,8 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
                 }
               }
               if($path_exist_flag){
-                if(!empty(trim($check_module['path']))){
+                $check_module['path'] = trim($check_module['path']);
+                if(!empty($check_module['path'])){
                   $problems['extension']['path_exists'][] = $check_module['path'];
                   $count++;
                 }
@@ -618,7 +619,8 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
                   }
                 }
                 if($config_exists_flag){
-                  if(!empty(trim($check_module['path']))){
+                    $check_module['path'] = trim($check_module['path']);
+                  if(!empty($check_module['path'])){
                     $problems['extension']['config_exists'][] = $check_module['path'] . '/etc/config.xml';
                     $count++;
                   }
