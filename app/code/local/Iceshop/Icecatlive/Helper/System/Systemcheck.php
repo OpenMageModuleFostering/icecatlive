@@ -558,10 +558,13 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
         $problems = array();
         $count = 0;
         //extension problems
-//        $check_module = $this->getModulesCollection(Mage::app()->getRequest()->getModuleName());
         $check_module = $this->getModulesCollection('Iceshop_Icecatlive');
         $check_module = $check_module->getLastItem()->getData();
 
+        if(!is_writable(Mage::getBaseDir('var') . ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_cache_path')->cache_path)){
+            $problems['extension']['permission_error'][] =  ''. Mage::getBaseDir('var') . ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_cache_path')->cache_path;
+            $count++;
+        }
         if (!$check_module['path_exists']) {
 //              $problems['extension']['path_exists'] = $check_module['path_exists'];
               $problems['extension']['path_exists'][] = $check_module['path'];
@@ -573,7 +576,6 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
             $count++;
         }
         //extension rewrites problems
-//        $check_rewrites = $this->getRewriteCollection(Mage::app()->getRequest()->getModuleName());
         $check_rewrites = $this->getRewriteCollection('Iceshop_Icecatlive');
 
         foreach ($check_rewrites as $rewrite) {

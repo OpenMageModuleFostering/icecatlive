@@ -2,14 +2,31 @@
 <config>
     <modules>
         <Iceshop_Icecatlive>
-            <version>1.7.0</version>
+            <version>1.7.3</version>
         </Iceshop_Icecatlive>
     </modules>
     <default>
     <icecatlive>
+        <icecatlive_icecat_dataurl>
+            <icecat_dataurl><![CDATA[https://data.icecat.biz/xml_s3/xml_server3.cgi]]></icecat_dataurl>
+        </icecatlive_icecat_dataurl>
+
+        <icecatlive_cache_path>
+            <cache_path><![CDATA[/iceshop/icecatlive/cache/]]></cache_path>
+        </icecatlive_cache_path>
+
+        <icecatlive_permission_error>
+            <icecatlive_error_text><![CDATA[Permission denied: ]]></icecatlive_error_text>
+        </icecatlive_permission_error>
+
+        <icecatlive_process_running>
+            <icecatlive_error_text><![CDATA[The process is currently running by another session.Please wait till the process is finished.]]></icecatlive_error_text>
+        </icecatlive_process_running>
+
         <patch>
             <template_file_path><![CDATA[frontend/default/default/template/iceshop/icecatlive/groupattributes.phtml]]></template_file_path>
         </patch>
+
         <noimportid_tables>
              <table_name>iceshop_icecatlive_noimport_products_id</table_name>
         </noimportid_tables>

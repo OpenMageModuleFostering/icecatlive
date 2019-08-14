@@ -200,7 +200,11 @@ END;";
         if (!empty($key)) {
             $sql = "SELECT log_value FROM `" . $this->_prefix . $productsIdTable = Mage::getConfig()->getNode('default/icecatlive/extensions_logs_tables')->table_name . "` WHERE log_key = '".$key."'";
             $value = $this->_reader->fetchAll($sql);
-            return $value[0]['log_value'];
+            if(isset($value[0]['log_value'])){
+              return $value[0]['log_value'];
+            } else {
+              return false;
+            }
         }
         return false;
     }

@@ -43,6 +43,7 @@ class Iceshop_Icecatlive_Model_Observer
         }
 
         if(!$real_time){
+        $process_running = Mage::getConfig()->getNode('default/icecatlive/icecatlive_process_running')->icecatlive_error_text;
         if(empty($import_info['process_hash'])){
             $import_info['process_hash'] = md5($import_info['process_hash_time']);
             $DB_loger->insetrtUpdateLogValue('icecatlive_process_hash', $import_info['process_hash']);
@@ -52,9 +53,9 @@ class Iceshop_Icecatlive_Model_Observer
             if($_GET['process_hash'] != $import_info['process_hash'] && $time<300 && $time>30){
               $import_info['done'] = 1;
               if((300 - $time)<60){
-                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. (300 - $time).' second</h4>';
+                  $import_info['error'] = $process_running . '<h4>Time wait: '. (300 - $time).' second</h4>';
               } elseif((300 - $time)>60) {
-                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. round((300 - $time)/60, 0) .' minute</h4>';
+                  $import_info['error'] = $process_running . '<h4>Time wait: '. round((300 - $time)/60, 0) .' minute</h4>';
               }
               $import_info['count_products'] = 0;
               $import_info['current_product'] = 0;
@@ -65,14 +66,15 @@ class Iceshop_Icecatlive_Model_Observer
                   $time_last = $import_time_product * ($import_info['count_products'] - $import_info['current_product']);
               }
               $import_info['done'] = 1;
+
               if(!empty($time_last)){
                   if($time_last < 60){
-                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. $time_last .' second</h4>';
+                  $import_info['error'] = $process_running .'<h4>Time wait: '. $time_last .' second</h4>';
                   } else {
-                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. round($time_last/60, 0) .' minute</h4>';
+                  $import_info['error'] = $process_running .'<h4>Time wait: '. round($time_last/60, 0) .' minute</h4>';
                   }
               } else {
-                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.';
+                  $import_info['error'] = $process_running;
               }
               $import_info['count_products'] = 0;
               $import_info['current_product'] = 0;
@@ -208,7 +210,7 @@ class Iceshop_Icecatlive_Model_Observer
             $vendorName = $this->getVendorName($entity_id);
 
             $mpn = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
-            $dataUrl = 'https://data.icecat.biz/xml_s3/xml_server3.cgi';
+            $dataUrl = ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_icecat_dataurl')->icecat_dataurl;
             $dataUrlProduct = '';
 
             $icecatliveImportModel = new Iceshop_Icecatlive_Model_Import();
@@ -232,6 +234,7 @@ class Iceshop_Icecatlive_Model_Observer
             }
 
             // if get data by MPN & brand name wrong => trying by Ean code
+            $error = false;
             if (!$successRespondByMPNVendorFlag) {
                 if (!empty($ean_code)) {
                     $resultString = $icecatliveImportModel->_getIceCatData($userName, $userPass, $dataUrl, array(
@@ -262,7 +265,10 @@ class Iceshop_Icecatlive_Model_Observer
                   }
                 }
                 $this->_prepareCacheDir();
-                $this->_saveXmltoIcecatLiveCache($resultString, $entity_id, $locale);
+                if(!$this->_saveXmltoIcecatLiveCache($resultString, $entity_id, $locale)){
+                  $import_info['error'] = Mage::getConfig()->getNode('default/icecatlive/icecatlive_permission_error')->icecatlive_error_text .
+                          Mage::getBaseDir('var') . $this->_connectorCacheDir . 'iceshop_icecatlive_' . $entity_id . '_' . $locale;
+                }
                 $prod_title = (string)$xml_result->Product['Title'];
 
                 $this->_saveProductTitle($entity_id, $prod_title);
@@ -436,7 +442,7 @@ class Iceshop_Icecatlive_Model_Observer
         $productsIdTable = $tablePrefix . $productsIdTable;
 
         try{
-            $sql = " INSERT INTO `" . $productsIdTable . "` ( prod_id )
+            $sql = " REPLACE INTO `" . $productsIdTable . "` ( prod_id )
                     VALUES(" . $prod_id . ")";
             $connection->query($sql);
         } catch (Exception $e) {
@@ -456,30 +462,36 @@ class Iceshop_Icecatlive_Model_Observer
         }
         $query = '';
         try{
-            $sql = 'SELECT ea.`attribute_id`, eea.`entity_type_id`, eea.`attribute_set_id` FROM eav_attribute AS ea
-                        LEFT JOIN eav_entity_attribute AS eea
+            $sql = "SELECT ea.`attribute_id`, eea.`entity_type_id`, eea.`attribute_set_id` FROM `{$tablePrefix}eav_attribute` AS ea
+                        LEFT JOIN `{$tablePrefix}eav_entity_attribute` AS eea
                                 ON eea.`attribute_id` = ea.`attribute_id`
-                    WHERE ea.`attribute_code`="icecatlive_status";';
+                      WHERE ea.`attribute_code`='icecatlive_status';";
             $query = $connection->fetchRow($sql);
-            $attribute_id = $query['attribute_id'];
-            $entity_type_id = $query['entity_type_id'];
-            $attribute_set_id = $query['attribute_set_id'];
+            if(!empty($query)){
+                $attribute_id = $query['attribute_id'];
+                $entity_type_id = $query['entity_type_id'];
+                $attribute_set_id = $query['attribute_set_id'];
 
-            $sql = 'SELECT cpev.`store_id` FROM eav_attribute AS ea
-                            LEFT JOIN catalog_product_entity_varchar AS cpev
-                              ON ea.`attribute_id` = cpev.`attribute_id`
-                    WHERE cpev.`entity_id`=' . $entity_id . ' AND (ea.`attribute_code` = "sku_type" OR ea.`attribute_code` = "mpn"  OR  ea.`attribute_code` = "ean" )
-                    GROUP BY cpev.`entity_id`;';
-            $query = $connection->fetchRow($sql);
-            $store_id = $query['store_id'];
+                $sql = "SELECT cpev.`store_id` FROM `{$tablePrefix}eav_attribute` AS ea
+                                LEFT JOIN `{$tablePrefix}catalog_product_entity_varchar` AS cpev
+                                  ON ea.`attribute_id` = cpev.`attribute_id`
+                        WHERE cpev.`entity_id`=' . $entity_id . ' AND (ea.`attribute_code` = 'sku_type' OR ea.`attribute_code` = 'mpn'  OR  ea.`attribute_code` = 'ean' )
+                        GROUP BY cpev.`entity_id`;";
+                $query = $connection->fetchRow($sql);
+                if(!empty($query['store_id'])){
+                    $store_id = $query['store_id'];
+                } else {
+                    $store_id = 1;
+                }
 
-            $sql = "DELETE FROM catalog_product_entity_varchar WHERE entity_id=".$entity_id.
-                    " AND attribute_id=".$attribute_id." AND store_id=".$store_id.";";
-            $connection->query($sql);
+                $sql = "DELETE FROM `{$tablePrefix}catalog_product_entity_varchar` WHERE entity_id=".$entity_id.
+                        " AND attribute_id=".$attribute_id." AND store_id=".$store_id.";";
+                $connection->query($sql);
 
-            $sql = "INSERT INTO `catalog_product_entity_varchar` ( value_id, entity_type_id, attribute_id, store_id, entity_id, value)
-                    VALUES(NULL, " . $entity_type_id . ", " .$attribute_id. ", ".$store_id. ", " .$entity_id.", '".$message. "')";
-            $connection->query($sql);
+                $sql = "INSERT INTO `{$tablePrefix}catalog_product_entity_varchar` ( value_id, entity_type_id, attribute_id, store_id, entity_id, value)
+                        VALUES(NULL, " . $entity_type_id . ", " .$attribute_id. ", ".$store_id. ", " .$entity_id.", '".$message. "')";
+                $connection->query($sql);
+            }
         } catch (Exception $e) {
             Mage::log("connector issue: {$e->getMessage()}");
         }
@@ -488,9 +500,18 @@ class Iceshop_Icecatlive_Model_Observer
 
     public function _saveXmltoIcecatLiveCache($resultString, $entity_id, $locale){
         $current_prodCacheXml =  Mage::getBaseDir('var') . $this->_connectorCacheDir . 'iceshop_icecatlive_' . $entity_id . '_' . $locale;
-        $current_prodCacheHandler = fopen($current_prodCacheXml, "w");
-        fwrite($current_prodCacheHandler, $resultString);
-        fclose ($current_prodCacheHandler);
+        if(is_writable(Mage::getBaseDir('var') . $this->_connectorCacheDir)){
+            $current_prodCacheHandler = fopen($current_prodCacheXml, "w");
+            fwrite($current_prodCacheHandler, $resultString);
+            fclose ($current_prodCacheHandler);
+            if(file_exists($current_prodCacheXml)){
+              return true;
+            } else {
+                return false;
+            }
+        } else {
+          return false;
+        }
     }
     /**
      * parse given XML to SIMPLE XML
@@ -540,7 +561,9 @@ class Iceshop_Icecatlive_Model_Observer
     {
         $varDir = Mage::getBaseDir('var') . $this->_connectorCacheDir;
         if (!is_dir($varDir)) {
+          if (is_writable(Mage::getBaseDir('var') . $this->_connectorDir)){
             mkdir($varDir, 0777, true);
+          }
         }
     }
 

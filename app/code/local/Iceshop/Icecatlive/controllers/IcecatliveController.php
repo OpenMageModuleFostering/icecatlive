@@ -30,7 +30,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         ?>
         <div class="entry-edit" id="icecatlive-digest">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="section-toggler-icecatlive open">
+                <a href="#" class="section-toggler-icecatlive">
                     Problems Digest
                 </a>
             </div>
@@ -58,6 +58,13 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
                                 } elseif($problem_name == 'path_exists'){
                                     print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
                                     print '</td><td class="value">Some path error:<ul>';
+                                    foreach($problem_value as $problem_value_key => $problem_value_path) {
+                                       print '<li>' . $problem_value_path . '</li>';
+                                    }
+                                    print '</ul></td></tr>';
+                                } elseif($problem_name == 'permission_error'){
+                                    print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
+                                    print '</td><td class="value">'.Mage::getConfig()->getNode('default/icecatlive/icecatlive_permission_error')->icecatlive_error_text.'<ul>';
                                     foreach($problem_value as $problem_value_key => $problem_value_path) {
                                        print '<li>' . $problem_value_path . '</li>';
                                     }
@@ -107,12 +114,17 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         $import_info['full_icecat_product'] = $DB_loger->getLogValue('icecatlive_full_icecat_product');
         $count_products = $DB_loger->readQuery("SELECT COUNT(*) FROM `" . $DB_loger->_prefix . "catalog_product_entity` LEFT JOIN `" . $DB_loger->_prefix . "iceshop_icecatlive_products_titles` ON entity_id = prod_id WHERE prod_id IS NULL");
         $import_info['count_not_updated_products'] = $count_products[0]['COUNT(*)'];
-        $cache_files = scandir(Mage::getBaseDir('var') .'/iceshop/icecatlive/cache/');
-        $count_cache_files = count($cache_files) - 2;
+        if(file_exists(Mage::getBaseDir('var') .'/iceshop/icecatlive/cache/') && is_readable(Mage::getBaseDir('var') .'/iceshop/icecatlive/cache/')){
+          $cache_files = scandir(Mage::getBaseDir('var') .'/iceshop/icecatlive/cache/');
+          $count_cache_files = count($cache_files) - 2;
+        } else {
+          $count_cache_files = 0;
+        }
         ?>
         <div class="entry-edit">
+
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">
+                <a href="#" class="section-toggler-icecatlive">
                     Icecatlive Info
                 </a>
             </div>
@@ -378,7 +390,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
 
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">Magento Info</a>
+                <a href="#" class="section-toggler-icecatlive">Magento Info</a>
             </div>
 
             <div class="fieldset icecatlive-hidden">
@@ -431,7 +443,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
 
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">Magento Core API Info</a>
+                <a href="#" class="section-toggler-icecatlive">Magento Core API Info</a>
             </div>
 
             <div class="fieldset icecatlive-hidden">
@@ -460,7 +472,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         </div>
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">PHP Info</a>
+                <a href="#" class="section-toggler-icecatlive">PHP Info</a>
             </div>
 
             <div class="fieldset icecatlive-hidden">
@@ -488,7 +500,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         </div>
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">MySQL Info</a>
+                <a href="#" class="section-toggler-icecatlive">MySQL Info</a>
             </div>
 
             <div class="fieldset icecatlive-hidden">
@@ -539,7 +551,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
 
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">MySQL Configuration</a>
+                <a href="#" class="section-toggler-icecatlive">MySQL Configuration</a>
             </div>
 
             <div class="fieldset icecatlive-hidden">
@@ -561,7 +573,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
 
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">Server Info</a>
+                <a href="#" class="section-toggler-icecatlive">Server Info</a>
             </div>
 
             <div class="fieldset icecatlive-hidden">
@@ -589,7 +601,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         </div>
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">Webshop IP address</a>
+                <a href="#" class="section-toggler-icecatlive">Webshop IP address</a>
             </div>
 
             <div class="fieldset icecatlive-hidden">
@@ -605,7 +617,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         </div>
         <div class="entry-edit">
             <div class="entry-edit-head collapseable">
-                <a href="#" class="open section-toggler-icecatlive">Not Import Product List</a>
+                <a href="#" class="section-toggler-icecatlive">Not Import Product List</a>
             </div>
             <div class="fieldset icecatlive-hidden">
                 <div id="gridActionClener" class="hor-scroll">
