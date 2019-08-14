@@ -7,7 +7,7 @@
         });
     }
 
-    function import_prod_info(update, full_import, error_import){
+    function import_prod_info(update, full_import, error_import, process_hash){
         $('loading_mask_loader').setStyle({
             width: '430px',
             marginLeft: '-235px',
@@ -21,11 +21,15 @@
         });
         new Ajax.Request('<?php echo Mage::helper('adminhtml')->getUrl('adminhtml/adminhtml_importproductinfo/check'); ?>', {
             method:     'get',
-            parameters: {update: update, full_import: full_import, error_import: error_import},
+            parameters: {update: update, full_import: full_import, error_import: error_import, process_hash: process_hash},
             onSuccess: function(transport){
                 var import_info = JSON.parse(transport.responseText);
                 var count_products = '<p> Found products in shop: '+import_info.count_products+'</p>';
                 var current_products = '<p> Current product: '+import_info.current_product+'</p>';
+                var process_hash = 0;
+                if(import_info.process_hash){
+                  process_hash = import_info.process_hash
+                }
                 var error = '';
                 var success_imported = '';
                 var full_icecat_product = '';
@@ -68,7 +72,7 @@
                             +system_error
                             +'</div>');
                     }
-                    import_prod_info(update);
+                    import_prod_info(update,0,0,process_hash);
                 }else{
                     if($('loading_mask_loader').select('#icecatlive-response').size() == 0){
                         $('loading_mask_loader').insert({bottom: '<div id="icecatlive-response" style="text-align: left">'

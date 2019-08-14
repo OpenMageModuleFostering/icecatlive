@@ -9,7 +9,7 @@ class Iceshop_Icecatlive_Block_Attributes extends Mage_Core_Block_Template
       $import = new Iceshop_Icecatlive_Model_Observer();
       $cache_file = $this->getCacheFile();
       if(!file_exists($cache_file) && Mage::getStoreConfig('icecat_root/icecat/product_loadingtype')){
-          $this->_product = $import->loadProductInfoIntoCache((int)Mage::registry('current_product')->getId());
+          $this->_product = $import->loadProductInfoIntoCache((int)Mage::registry('current_product')->getId(),0,1);
       }
     }
 

@@ -21,11 +21,73 @@ class Iceshop_Icecatlive_Model_Observer
     {
         $this->_init('icecatlive/observer');
     }
-    public function loadProductInfoIntoCache($import_id = 0, $crone=0){
+
+    public function loadProductInfoIntoCache($import_id = 0, $crone=0,$real_time=0){
+
+      try{
+        $start_import_time = microtime(true);
         $product_onlynewproducts = Mage::getStoreConfig('icecat_root/icecat/product_onlynewproducts');
         $import_info = array();
 
         $DB_loger = Mage::helper('icecatlive/db');
+
+        $import_info['process_hash'] = $DB_loger->getLogValue('icecatlive_process_hash');
+        $import_info['process_hash_time'] = $DB_loger->getLogValue('icecatlive_process_hash_time');
+        $import_time_product = $DB_loger->getLogValue('import_time_one_product');
+        $import_info['current_product'] = $DB_loger->getLogValue('icecatlive_current_product_temp');
+        $import_info['count_products'] = $DB_loger->getLogValue('icecatlive_count_products_temp');
+
+        if(empty($import_info['process_hash_time'])){
+          $import_info['process_hash_time'] = microtime(true);
+          $DB_loger->insetrtUpdateLogValue('icecatlive_process_hash_time', $import_info['process_hash_time']);
+        }
+
+        if(!$real_time){
+        if(empty($import_info['process_hash'])){
+            $import_info['process_hash'] = md5($import_info['process_hash_time']);
+            $DB_loger->insetrtUpdateLogValue('icecatlive_process_hash', $import_info['process_hash']);
+        } else {
+            $time = microtime(true) - $import_info['process_hash_time'];
+            $time = (int)(round($time)*1000)/1000;
+            if($_GET['process_hash'] != $import_info['process_hash'] && $time<300 && $time>30){
+              $import_info['done'] = 1;
+              if((300 - $time)<60){
+                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. (300 - $time).' second</h4>';
+              } elseif((300 - $time)>60) {
+                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. round((300 - $time)/60, 0) .' minute</h4>';
+              }
+              $import_info['count_products'] = 0;
+              $import_info['current_product'] = 0;
+              echo json_encode($import_info);
+              die();
+            } elseif($_GET['process_hash'] != $import_info['process_hash'] && $time<300){
+              if(!empty($import_time_product)&&!empty($import_info['current_product'])&&!empty($import_info['count_products'])){
+                  $time_last = $import_time_product * ($import_info['count_products'] - $import_info['current_product']);
+              }
+              $import_info['done'] = 1;
+              if(!empty($time_last)){
+                  if($time_last < 60){
+                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. $time_last .' second</h4>';
+                  } else {
+                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.<h4>Time wait: '. round($time_last/60, 0) .' minute</h4>';
+                  }
+              } else {
+                  $import_info['error'] = 'The process is currently running by another session.Please wait till the process is finished.';
+              }
+              $import_info['count_products'] = 0;
+              $import_info['current_product'] = 0;
+              echo json_encode($import_info);
+              die();
+
+            } else {
+                $DB_loger->insetrtUpdateLogValue('icecatlive_process_hash_time', microtime(true));
+            }
+        }
+        }
+
+
+
+
         if(!$import_id){
             if($_GET['full_import'] == 1){
                 $DB_loger->deleteLogKey('icecatlive_full_icecat_product_temp');
@@ -35,9 +97,6 @@ class Iceshop_Icecatlive_Model_Observer
                 $DB_loger->deleteLogKey('icecatlive_count_products_temp');
                 $DB_loger->deleteLogKey('import_icecat_server_error_message');
             }
-            $import_info['current_product'] = $DB_loger->getLogValue('icecatlive_current_product_temp');
-            $import_info['count_products'] = $DB_loger->getLogValue('icecatlive_count_products_temp');
-
 
 
             if(empty($import_info['count_products'])){
@@ -64,6 +123,7 @@ class Iceshop_Icecatlive_Model_Observer
                     $DB_loger->insetrtUpdateLogValue('icecatlive_current_product_temp', $import_info['current_product']);
             }
         }
+
         $db_res = Mage::getSingleton('core/resource')->getConnection('core_write');
         $catalog_product_model = Mage::getModel('catalog/product');
         $userName = Mage::getStoreConfig('icecat_root/icecat/login');
@@ -78,6 +138,7 @@ class Iceshop_Icecatlive_Model_Observer
         if (!empty($tPrefix)) {
             $tablePrefix = $tPrefix[0];
         }
+
         if(!$import_id){
           if(empty($import_info['count_products'])){
               if($_GET['update'] != 1){
@@ -138,6 +199,7 @@ class Iceshop_Icecatlive_Model_Observer
               $entity_id = $entity_id['entity_id'];
           }
         }
+
         if($import_id){
             $entity_id = $import_id;
         }
@@ -167,6 +229,7 @@ class Iceshop_Icecatlive_Model_Observer
                 }
 
             }
+
             // if get data by MPN & brand name wrong => trying by Ean code
             if (!$successRespondByMPNVendorFlag) {
                 if (!empty($ean_code)) {
@@ -184,6 +247,7 @@ class Iceshop_Icecatlive_Model_Observer
                     $error = true;
                 }
             }
+
             if(!$error){
                 if(!$import_id){
                   if(empty($import_info['success_imported_product'])){
@@ -265,6 +329,10 @@ class Iceshop_Icecatlive_Model_Observer
             $DB_loger->deleteLogKey('icecatlive_error_imported_product_temp');
             $DB_loger->deleteLogKey('icecatlive_success_imported_product_temp');
             $DB_loger->deleteLogKey('icecatlive_count_products_temp');
+            $DB_loger->deleteLogKey('import_time_one_product');
+            $DB_loger->deleteLogKey('icecatlive_process_hash');
+            $DB_loger->deleteLogKey('icecatlive_process_hash_time');
+
             if($_GET['update'] != 1 && !$import_id){
                 $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_imported_product', date('Y-m-d H:i:s'));
             } elseif (!$import_id) {
@@ -285,7 +353,24 @@ class Iceshop_Icecatlive_Model_Observer
             echo json_encode($import_info);
         }
 
-    }
+
+        $import_time_one_product = microtime(true) - $start_import_time;
+        $import_time_one_product = (int)(round($import_time_one_product)*1000)/1000;
+
+        if(empty($import_time_product)){
+            $DB_loger->insetrtUpdateLogValue('import_time_one_product', $import_time_one_product);
+        } else {
+            if($import_time_product < $import_time_one_product){
+                $DB_loger->insetrtUpdateLogValue('import_time_one_product', $import_time_one_product);
+            }
+        }
+
+     } catch (Exception $e){
+       $DB_loger->deleteLogKey('icecatlive_process_hash');
+       $DB_loger->deleteLogKey('icecatlive_process_hash_time');
+       throw new Exception($e->getMessage());
+     }
+   }
 
     public function _saveProductTitle($prod_id, $prod_title){
         $connection = $this->getDbConnection();
