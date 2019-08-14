@@ -555,32 +555,80 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
      */
     public function getExtensionProblemsDigest()
     {
+      $DB_loger = Mage::helper('icecatlive/db');
+      $skip_data = $DB_loger->getLogValue('icecatlive_skip_problems_digest');
+
+      $skip_data_empty = FALSE;
+      if(!empty($skip_data)){
+          $skip_data_empty = true;
+          $skip_data = (array)json_decode($skip_data);
+      }
         $problems = array();
         $count = 0;
         //extension problems
         $check_module = $this->getModulesCollection('Iceshop_Icecatlive');
         $check_module = $check_module->getLastItem()->getData();
+          $permission_error_flag = true;
+          if($skip_data_empty && !empty($skip_data['extension'])){
+            foreach ($skip_data['extension'] as $key=>$value){
+              if($value=='permission_error'){
+                $permission_error_flag =false;
+              }
+            }
+          }
+          if($permission_error_flag){
+            if(!is_writable(Mage::getBaseDir('var'))){
+                $problems['extension']['permission_error'][] =  ''. Mage::getBaseDir('var') . ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_cache_path')->cache_path;
+                $count++;
+            }
+            if(!is_writable(Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath() . '/')){
+                $problems['extension']['permission_error'][] = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath() . '/';
+                if(is_writable(Mage::getBaseDir('var'))){
+                  $count++;
+                }
+            }
+          }
 
-        if(!is_writable(Mage::getBaseDir('var'))){
-            $problems['extension']['permission_error'][] =  ''. Mage::getBaseDir('var') . ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_cache_path')->cache_path;
-            $count++;
-        }
-        if(!is_writable(Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath() . '/')){
-            $problems['extension']['permission_error'][] = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath() . '/';
-            $count++;
-        }
         if (!$check_module['path_exists']) {
           if(!empty($check_module['path'])){
-              $problems['extension']['path_exists'][] = $check_module['path'];
-              $count++;
+              $path_exist_flag = true;
+              if($skip_data_empty && !empty($skip_data['extension'])){
+                foreach ($skip_data['extension'] as $key=>$value){
+                  if($value=='path_exists'){
+                    $path_exist_flag =false;
+                  }
+                }
+              }
+              if($path_exist_flag){
+                if(!empty(trim($check_module['path']))){
+                  $problems['extension']['path_exists'][] = $check_module['path'];
+                  $count++;
+                }
+              }
           }
         }
         if (!$check_module['config_exists']) {
             if(!empty($check_module['path'])){
-              $problems['extension']['config_exists'][] = $check_module['path'] . '/etc/config.xml';
-              $count++;
+                $config_exists_flag = true;
+                if($skip_data_empty && !empty($skip_data['extension'])){
+                  foreach ($skip_data['extension'] as $key=>$value){
+                    if($value=='config_exists'){
+                      $config_exists_flag =false;
+                    }
+                  }
+                }
+                if($config_exists_flag){
+                  if(!empty(trim($check_module['path']))){
+                    $problems['extension']['config_exists'][] = $check_module['path'] . '/etc/config.xml';
+                    $count++;
+                  }
+                }
             }
         }
+        if(empty($problems['extension'])){
+          unset($problems['extension']);
+        }
+
         //extension rewrites problems
         $check_rewrites = $this->getRewriteCollection('Iceshop_Icecatlive');
 
@@ -591,33 +639,107 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
             }
         }
 
+        if(!empty($problems['rewrite'])){
+          $problems_rewrite_count = count($problems['rewrite']);
+          for($i = 0; $i<$problems_rewrite_count; $i++){
+            if (!$problems['rewrite'][$i]['status']) {
+                unset($problems['rewrite'][$i]);
+                  $count--;
+            }
+          }
+          if($skip_data_empty && !empty($skip_data['rewrite'])){
+            foreach ($skip_data['rewrite'] as $key=>$value){
+                if(!empty($problems['rewrite'][$value])){
+                  unset($problems['rewrite'][$value]);
+                  $count--;
+                }
+            }
+          }
+          if(empty($problems['rewrite'])){
+            unset($problems['rewrite']);
+          }
+        }
+
         //system requirements (for magento/extension)
         $requirements = $this->getSystem()->getRequirements()->getData();
         foreach ($requirements as $requirement) {
             if (!$requirement['result']) {
-                $problems['requirement'][] = $requirement;
-                $count++;
+                $requirement_flag = true;
+                if($skip_data_empty && !empty($skip_data['requirement'])){
+                  foreach ($skip_data['requirement'] as $key=>$value){
+                    if($value==$requirement['label']){
+                      $requirement_flag =false;
+                    }
+                  }
+                }
+                if($requirement_flag){
+                  $problems['requirement'][] = $requirement;
+                  $count++;
+                }
             }
+        }
+        if(empty($problems['requirement'])){
+          unset($problems['requirement']);
         }
 
         //magento API problems
         $magento_api_session_timeout = $this->getSystem()->getMagentoApi()->getSessionTimeout();
         if (!$magento_api_session_timeout['result']) {
-            $problems['api']['timeout'] = $magento_api_session_timeout;
-            $count++;
+            $api_skip_flag = true;
+            if($skip_data_empty && !empty($skip_data['api'])){
+              foreach ($skip_data['api'] as $key=>$value){
+                if($value=='timeout'){
+                    $api_skip_flag =false;
+                }
+              }
+            }
+            if($api_skip_flag){
+              $problems['api']['timeout'] = $magento_api_session_timeout;
+              $count++;
+            }
         }
-
+        if(empty($problems['api'])){
+          unset($problems['api']);
+        }
         $mysql = $this->getSystem()->getMysql()->getData();
         foreach ($mysql as $mysql_param_name => $mysql_param_value) {
             if (is_array($mysql_param_value) && !$mysql_param_value['result']) {
-                $problems['mysql'][$mysql_param_name] = $mysql_param_value;
-                $count++;
+                $mysql_skip_flag = true;
+                if($skip_data_empty && !empty($skip_data['mysql'])){
+                  foreach ($skip_data['mysql'] as $key=>$value){
+                    if($value==$mysql_param_name){
+                        $mysql_skip_flag =false;
+                    }
+                  }
+                }
+                if($mysql_skip_flag){
+                  $problems['mysql'][$mysql_param_name] = $mysql_param_value;
+                  $count++;
+                }
             }
+        }
+        if(empty($problems['mysql'])){
+          unset($problems['mysql']);
         }
 
         $problems_digest = new Varien_Object();
         $problems_digest->setData('problems', $problems);
         $problems_digest->setData('count', $count);
         return $problems_digest;
+    }
+
+
+    /**
+     * Check skip wrning iceimport
+     * @return boolean
+     */
+    public function checkSetWarning(){
+      $DB_loger = Mage::helper('icecatlive/db');
+      $skip_data = $DB_loger->getLogValue('icecatlive_skip_problems_digest');
+      if(empty($skip_data)){
+        return true;
+      } else {
+        return false;
+      }
     }
 }

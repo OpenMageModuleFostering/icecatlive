@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS {$this->getTable('iceshop_icecatlive_noimport_product
 
 	CREATE TABLE IF NOT EXISTS {$this->getTable('iceshop_icecatlive_extensions_logs')} (
 	`log_key` VARCHAR(255) NOT NULL,
-	`log_value` varchar(255) DEFAULT NULL,
+	`log_value` TEXT DEFAULT NULL,
 	UNIQUE KEY (`log_key`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Iceshop Connector logs';
 ");

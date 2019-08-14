@@ -47,6 +47,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
                         $i = 1;
                         foreach ($problems as $problem_section_name => $problem_section) {
                             foreach($problem_section as $problem_name => $problem_value) {
+                                if($problem_section_name=='extension'){
                                   if($problem_name == 'config_exists'){
                                     print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
                                     print '</td><td class="value">Some required files are missed:';
@@ -54,22 +55,42 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
                                     foreach($problem_value as $problem_value_key => $problem_value_path) {
                                         print '<li>' . $problem_value_path . '</li>';
                                     }
-                                    print '</ul></td></tr>';
-                                } elseif($problem_name == 'path_exists'){
-                                    print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
-                                    print '</td><td class="value">Some path error:<ul>';
-                                    foreach($problem_value as $problem_value_key => $problem_value_path) {
-                                       print '<li>' . $problem_value_path . '</li>';
-                                    }
-                                    print '</ul></td></tr>';
-                                } elseif($problem_name == 'permission_error'){
-                                    print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
-                                    print '</td><td class="value">'.Mage::getConfig()->getNode('default/icecatlive/icecatlive_permission_error')->icecatlive_error_text.'<ul>';
-                                    foreach($problem_value as $problem_value_key => $problem_value_path) {
-                                       print '<li>' . $problem_value_path . '</li>';
-                                    }
-                                    print '</ul></td></tr>';
+                                    print '</ul></td>';
+                                    print '<td class="value">';
+                                            print '<span class="f-right">'
+                                            . '<a href="' . Mage::helper("adminhtml")->getUrl("adminhtml/icecatlive/checkwarning/", array('warning'=>$problem_name,'section_problems' => $problem_section_name)) . '">'
+                                                    . Mage::helper( 'icecatlive' )->__( 'Acknowledge' ) . '</a></span>';
+                                      print '</td>';
+                                      print '</tr>';
+                                  } elseif($problem_name == 'path_exists'){
+                                      print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
+                                      print '</td><td class="value">Some path error:<ul>';
+                                      foreach($problem_value as $problem_value_key => $problem_value_path) {
+                                         print '<li>' . $problem_value_path . '</li>';
+                                      }
+                                      print '</ul></td>';
+                                      print '<td class="value">';
+                                            print '<span class="f-right">'
+                                            . '<a href="' . Mage::helper("adminhtml")->getUrl("adminhtml/icecatlive/checkwarning/", array('warning'=>$problem_name,'section_problems' => $problem_section_name)) . '">'
+                                                    . Mage::helper( 'icecatlive' )->__( 'Acknowledge' ) . '</a></span>';
+                                      print '</td>';
+                                      print '</tr>';
+                                  } elseif($problem_name == 'permission_error'){
+                                      print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
+                                      print '</td><td class="value">'.Mage::getConfig()->getNode('default/icecatlive/icecatlive_permission_error')->icecatlive_error_text.'<ul>';
+                                      foreach($problem_value as $problem_value_key => $problem_value_path) {
+                                         print '<li>' . $problem_value_path . '</li>';
+                                      }
+                                      print '</ul></td>';
+                                      print '<td class="value">';
+                                            print '<span class="f-right">'
+                                            . '<a href="' . Mage::helper("adminhtml")->getUrl("adminhtml/icecatlive/checkwarning/", array('warning'=>$problem_name,'section_problems' => $problem_section_name)) . '">'
+                                                    . Mage::helper( 'icecatlive' )->__( 'Acknowledge' ) . '</a></span>';
+                                      print '</td>';
+                                      print '</tr>';
+                                  }
                                 } else{
+
                                     print '<tr><td class="label"><label class="problem-digest">' . $helper->__('Problem') . " " . $i . ':</label>';
                                     print '</td><td class="value"><span class="requirement-passed">"'
                                   . $problem_value['label'] . '"</span> ' . $helper->__('current value is') . ' <span class="requirement-failed">"'
@@ -78,7 +99,28 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
                                   . $helper->__(' Check this parameter in') . ' <a class="section-toggler-trigger requirement-passed" data-href="#'
                                   . $problem_section_name . '-section" href="#' . $problem_section_name . '-section">'
                                   . ucfirst($problem_section_name) . '</a> ' . $helper->__('section') . '.';
-                                    print '</td></tr>';
+                                    print '</td>';
+                                      if($problem_section_name != 'requirement' && $problem_section_name != 'rewrite'){
+                                            print '<td class="value">';
+                                            print '<span class="f-right">'
+                                            . '<a href="' . Mage::helper("adminhtml")->getUrl("adminhtml/icecatlive/checkwarning/", array('warning'=>$problem_name,'section_problems' => $problem_section_name)) . '">'
+                                                    . Mage::helper( 'icecatlive' )->__( 'Acknowledge' ) . '</a></span>';
+                                            print '</td>';
+                                      } elseif ($problem_section_name == 'requirement') {
+                                            print '<td class="value">';
+                                            print '<span class="f-right">'
+                                            . '<a href="' . Mage::helper("adminhtml")->getUrl("adminhtml/icecatlive/checkwarning/", array('warning'=>$problem_value['label'],'section_problems' => $problem_section_name)) . '">'
+                                                    . Mage::helper( 'icecatlive' )->__( 'Acknowledge' ) . '</a></span>';
+                                            print '</td>';
+                                      } elseif ($problem_section_name == 'rewrite') {
+                                            print '<td class="value">';
+                                            print '<span class="f-right">'
+                                            . '<a href="' . Mage::helper("adminhtml")->getUrl("adminhtml/icecatlive/checkwarning/", array('warning'=>$problem_name,'section_problems' => $problem_section_name)) . '">'
+                                                    . Mage::helper( 'icecatlive' )->__( 'Acknowledge' ) . '</a></span>';
+                                            print '</td>';
+                                      }
+                                      print '</tr>';
+
                                 }
                                 $i++;
                             }
@@ -93,6 +135,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
                                    target="_blank">&raquo;<?php print $helper->__('Click to generate'); ?></a>
                                 <p class="note"><?php print $helper->__("Use this report for more info on found problems or send it to Iceshop B.V. to help analyzing the problem to speed up solution of any issues."); ?></p>
                             </td>
+                            <td></td>
                         </tr>
                     </table>
                 </div>
@@ -961,5 +1004,37 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         $fileName = 'notimport_product.xml';
         $grid = $this->getLayout()->createBlock('icecatlive/adminhtml_product_list_grid');
         $this->_prepareDownloadResponse($fileName, $grid->getExcelFile($fileName));
+    }
+
+    /**
+     * Add to log skip notifications
+     */
+    public function checkwarningAction() {
+      $DB_loger = Mage::helper('icecatlive/db');
+      $skip_data = $DB_loger->getLogValue('icecatlive_skip_problems_digest');
+
+        $warning = $this->getRequest()->getParam('warning');
+        $section_problems = $this->getRequest()->getParam('section_problems');
+        if(empty($skip_data)){
+          $skip_data = array();
+          $skip_data[$section_problems][] = $warning;
+          $skip_data = json_encode($skip_data);
+          $DB_loger->insetrtUpdateLogValue('icecatlive_skip_problems_digest', addslashes($skip_data));
+        } else {
+          $skip_data = (array)json_decode($skip_data);
+          if(!empty($skip_data[$section_problems])){
+            if(!in_array($warning, $skip_data[$section_problems], true)){
+              $skip_data[$section_problems][] = $warning;
+              $skip_data = json_encode($skip_data);
+              $DB_loger->insetrtUpdateLogValue('icecatlive_skip_problems_digest', addslashes($skip_data));
+            }
+          } else {
+              $skip_data[$section_problems][] = $warning;
+              $skip_data = json_encode($skip_data);
+              $DB_loger->insetrtUpdateLogValue('icecatlive_skip_problems_digest', addslashes($skip_data));
+          }
+        }
+
+        $this->_redirectUrl(Mage::helper("adminhtml")->getUrl("*/system_config/edit", array('section' => 'icecatlive_information')));
     }
 }

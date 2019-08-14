@@ -122,6 +122,9 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
     protected function _prepareColumns()
     {
 
+      $mpn = Mage::getStoreConfig('icecat_root/icecat/sku_field');
+      $ean_code = Mage::getStoreConfig('icecat_root/icecat/ean_code');
+
        $this->addColumn('entity_id',
             array(
                 'header'=> Mage::helper('catalog')->__('ID'),
