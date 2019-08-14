@@ -87,6 +87,7 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
           if($this->checkExistingAttribute('catalog_product', 'price')){
               $collection->addAttributeToSelect('price');
           }
+
           if($this->checkExistingAttribute('catalog_product', 'ean')){
               $collection->joinAttribute('ean', 'catalog_product/ean', 'entity_id', null, 'inner');
           }
@@ -160,7 +161,7 @@ class Iceshop_Icecatlive_Block_Adminhtml_Product_List_Grid extends Mage_Adminhtm
                   'index' => 'mpn',
           ));
         }
-        
+
         if($this->checkExistingAttribute('catalog_product', 'ean')){
             $this->addColumn('ean',
                 array(

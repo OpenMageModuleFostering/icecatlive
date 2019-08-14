@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Iceshop_Icecatlive>
-            <version>1.7.4</version>
+            <version>1.7.5</version>
         </Iceshop_Icecatlive>
     </modules>
     <default>
@@ -138,17 +138,6 @@
         </translate>
     </frontend>
     <adminhtml>
-        <events>
-            <adminhtml_cache_refresh_type>
-                <observers>
-                    <iceshop_icecatlive_model_observer>
-                        <type>singleton</type>
-                        <class>Iceshop_Icecatlive_Model_Observer</class>
-                        <method>adminhtml_cache_refresh_type</method>
-                    </iceshop_icecatlive_model_observer>
-                </observers>
-            </adminhtml_cache_refresh_type>
-        </events>
         <layout>
             <updates>
                 <icecatlive>
