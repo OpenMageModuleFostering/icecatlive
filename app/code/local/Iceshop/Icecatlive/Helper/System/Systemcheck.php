@@ -565,15 +565,21 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
             $problems['extension']['permission_error'][] =  ''. Mage::getBaseDir('var') . ''.Mage::getConfig()->getNode('default/icecatlive/icecatlive_cache_path')->cache_path;
             $count++;
         }
-        if (!$check_module['path_exists']) {
-//              $problems['extension']['path_exists'] = $check_module['path_exists'];
-              $problems['extension']['path_exists'][] = $check_module['path'];
+        if(!is_writable(Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath() . '/')){
+            $problems['extension']['permission_error'][] = Mage::getSingleton('catalog/product_media_config')->getBaseMediaPath() . '/';
             $count++;
         }
+        if (!$check_module['path_exists']) {
+          if(!empty($check_module['path'])){
+              $problems['extension']['path_exists'][] = $check_module['path'];
+              $count++;
+          }
+        }
         if (!$check_module['config_exists']) {
-//            $problems['extension']['config_exists'] = $check_module['config_exists'];
-            $problems['extension']['config_exists'][] = $check_module['path'] . '/etc/config.xml';
-            $count++;
+            if(!empty($check_module['path'])){
+              $problems['extension']['config_exists'][] = $check_module['path'] . '/etc/config.xml';
+              $count++;
+            }
         }
         //extension rewrites problems
         $check_rewrites = $this->getRewriteCollection('Iceshop_Icecatlive');

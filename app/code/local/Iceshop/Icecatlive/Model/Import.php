@@ -148,8 +148,6 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
         }
     }
 
-
-
     public function _saveProductCatalogImage($entityId, $productTag){
         $Imagepriority = Mage::getStoreConfig('icecat_root/icecat/image_priority');
         if ($Imagepriority != 'Db') {
@@ -163,9 +161,14 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
         }
     }
 
+    /**
+     * Change request host for image parse https to http
+     * @param string $productTag
+     * @return string
+     */
     public function changeHostsImages($productTag){
-	$image_path = str_replace("http:", "https:", $productTag);
-	return $image_path;
+        $image_path = str_replace("http:", "https:", $productTag);
+        return $image_path;
     }
 
     public function getErrorMessage()
@@ -413,6 +416,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
      */
     public function saveImg($productId, $img_url, $img_type = '')
     {
+
         $pathinfo = pathinfo($img_url);
         if(!empty($pathinfo["extension"])){
             $img_type = $pathinfo["extension"];
@@ -440,7 +444,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
             }
             $file = file_put_contents($baseDir . $img, $content->getBody());
             if ($file) {
-                $this->addProductImageQuery($productId, $img, $imgtype);
+                $this->addProductImageQuery($productId, $img, $img_type);
                 return $img;
             } else {
                 return $img_url;
@@ -485,7 +489,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
             if ((isset($img_check[0]["COUNT(*)"]) && isset($gal_check[0]["COUNT(*)"]))
                 && ($img_check[0]["COUNT(*)"] == 0 && $gal_check[0]["COUNT(*)"] == 0)
             ) {
-                $this->addProductImageQuery($productId, $img, $imgtype);
+                $this->addProductImageQuery($productId, $img, $img_type);
             }
             return $img;
         }
@@ -493,6 +497,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
 
 
     public function addProductImageQuery($productId, $img, $type = ''){
+
         $db = Mage::getSingleton('core/resource')->getConnection('core_write');
         $tablePrefix = (array)Mage::getConfig()->getTablePrefix();
         if (!empty($tablePrefix[0])) {
@@ -501,83 +506,149 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
             $tablePrefix = '';
         }
 
-        $attr_query = "SELECT @product_entity_type_id   := `entity_type_id` FROM `" . $tablePrefix . "eav_entity_type` WHERE
-                                entity_type_code = 'catalog_product';
-                         SELECT @attribute_set_id         := `entity_type_id` FROM `" . $tablePrefix . "eav_entity_type` WHERE
-                                entity_type_code = 'catalog_product';
-                         SELECT @gallery := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
-                               `attribute_code` = 'media_gallery' AND entity_type_id = @product_entity_type_id;
-                         SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id;
-                         SELECT @small := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
-                               `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id;
-                         SELECT @thumb := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
-                               `attribute_code` = 'thumbnail' AND entity_type_id = @product_entity_type_id;";
+        try{
+            $attr_query = "SELECT @product_entity_type_id   := `entity_type_id` FROM `" . $tablePrefix . "eav_entity_type` WHERE
+                                    entity_type_code = 'catalog_product';
+                             SELECT @attribute_set_id         := `entity_type_id` FROM `" . $tablePrefix . "eav_entity_type` WHERE
+                                    entity_type_code = 'catalog_product';
+                             SELECT @gallery := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                                   `attribute_code` = 'media_gallery' AND entity_type_id = @product_entity_type_id;
+                             SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id;
+                             SELECT @small := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                                   `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id;
+                             SELECT @thumb := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
+                                   `attribute_code` = 'thumbnail' AND entity_type_id = @product_entity_type_id;";
 
-        $db->query($attr_query, array(':attribute_set' => Mage::getModel('catalog/product')->getResource()->getEntityType()->getDefaultAttributeSetId()));
+            $db->query($attr_query, array(':attribute_set' => Mage::getModel('catalog/product')->getResource()->getEntityType()->getDefaultAttributeSetId()));
 
-        $DefaultStoreId = 0;
+            $DefaultStoreId = 0;
 
 
-            $img_check = $db->fetchAll("SELECT ea.`attribute_code`, cpev.`value` FROM catalog_product_entity_varchar  AS cpev
-			LEFT JOIN `eav_attribute` AS ea
-				       ON ea.`attribute_id`=cpev.`attribute_id`
-WHERE cpev.`entity_id`=:entity_id AND cpev.`store_id`=:store_id AND ( ea.`attribute_code`='image' OR ea.`attribute_code`='thumbnail' OR ea.`attribute_code`='small_image');",
-                    array(
-                        ':entity_id' => $productId,
-                        ':store_id' => $DefaultStoreId,
-                  ));
+                $img_check = $db->fetchAll("SELECT ea.`attribute_code`, cpev.`value` FROM `" . $tablePrefix . "catalog_product_entity_varchar`  AS cpev
+          LEFT JOIN `" . $tablePrefix . "eav_attribute` AS ea
+                   ON ea.`attribute_id`=cpev.`attribute_id`
+    WHERE cpev.`entity_id`=:entity_id AND cpev.`store_id`=:store_id AND ( ea.`attribute_code`='image' OR ea.`attribute_code`='thumbnail' OR ea.`attribute_code`='small_image');",
+                        array(
+                            ':entity_id' => $productId,
+                            ':store_id' => $DefaultStoreId,
+                      ));
 
-            if (empty($type) || $type == 'image') {
-              foreach ($img_check as $image){
+                if (!empty($type) || $type == 'image') {
+                  if(!empty($img_check)){
+                      foreach ($img_check as $image){
+                        if(!empty($image) && $image['attribute_code'] == 'image'){
+                          if($image['value']=='no_selection'){
+                          $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                              (entity_type_id,attribute_id,store_id,entity_id,value)
+                                        VALUES(@product_entity_type_id,@base,:store_id,:entity_id,:img )
+                                        ON DUPLICATE KEY UPDATE value = :img", array(
+                              ':store_id' => $DefaultStoreId,
+                              ':entity_id' => $productId,
+                              ':img' => $img));
+                          }
+                        }
 
-                if(!empty($image) && $image['attribute_code'] == 'image'){
-                  if($image['value']=='no_selection'){
-                  $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
-                                      (entity_type_id,attribute_id,store_id,entity_id,value)
-                                VALUES(@product_entity_type_id,@base,:store_id,:entity_id,:img )
-                                ON DUPLICATE KEY UPDATE value = :img", array(
-                      ':store_id' => $DefaultStoreId,
-                      ':entity_id' => $productId,
-                      ':img' => $img));
+                        if(!empty($image) && $image['attribute_code'] == 'small_image'){
+                          if($image['value']=='no_selection'){
+                          $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                              (entity_type_id,attribute_id,store_id,entity_id,value)
+                                        VALUES(@product_entity_type_id,@small,:store_id,:entity_id,:img )
+                                        ON DUPLICATE KEY UPDATE value = :img", array(
+                              ':store_id' => $DefaultStoreId,
+                              ':entity_id' => $productId,
+                              ':img' => $img));
+                          }
+                        }
+
+                        if(!empty($image) && $image['attribute_code'] == 'thumbnail'){
+                          if($image['value']=='no_selection'){
+                          $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                              (entity_type_id,attribute_id,store_id,entity_id,value)
+                                        VALUES(@product_entity_type_id,@thumb,:store_id,:entity_id,:img )
+                                        ON DUPLICATE KEY UPDATE value = :img", array(
+                              ':store_id' => $DefaultStoreId,
+                              ':entity_id' => $productId,
+                              ':img' => $img));
+                          }
+                        }
+                      }
+
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery` (attribute_id,entity_id,value)
+                                      VALUES(@gallery,:entity_id,:img )", array(
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery_value`
+                                            (value_id,store_id,label,position,disabled)
+                                      VALUES(LAST_INSERT_ID(),:store_id,'',0,0 )", array(
+                          ':store_id' => $DefaultStoreId));
+                  } else {
+
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                          (entity_type_id,attribute_id,store_id,entity_id,value)
+                                    VALUES(@product_entity_type_id,@base,:store_id,:entity_id,:img )
+                                    ON DUPLICATE KEY UPDATE value = :img", array(
+                          ':store_id' => $DefaultStoreId,
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                          (entity_type_id,attribute_id,store_id,entity_id,value)
+                                    VALUES(@product_entity_type_id,@small,:store_id,:entity_id,:img )
+                                    ON DUPLICATE KEY UPDATE value = :img", array(
+                          ':store_id' => $DefaultStoreId,
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                          (entity_type_id,attribute_id,store_id,entity_id,value)
+                                    VALUES(@product_entity_type_id,@thumb,:store_id,:entity_id,:img )
+                                    ON DUPLICATE KEY UPDATE value = :img", array(
+                          ':store_id' => $DefaultStoreId,
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery` (attribute_id,entity_id,value)
+                                      VALUES(@gallery,:entity_id,:img )", array(
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery_value`
+                                            (value_id,store_id,label,position,disabled)
+                                      VALUES(LAST_INSERT_ID(),:store_id,'',1,0 )", array(
+                          ':store_id' => $DefaultStoreId));
                   }
+                } else {
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                          (entity_type_id,attribute_id,store_id,entity_id,value)
+                                    VALUES(@product_entity_type_id,@base,:store_id,:entity_id,:img )
+                                    ON DUPLICATE KEY UPDATE value = :img", array(
+                          ':store_id' => $DefaultStoreId,
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                          (entity_type_id,attribute_id,store_id,entity_id,value)
+                                    VALUES(@product_entity_type_id,@small,:store_id,:entity_id,:img )
+                                    ON DUPLICATE KEY UPDATE value = :img", array(
+                          ':store_id' => $DefaultStoreId,
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
+                                          (entity_type_id,attribute_id,store_id,entity_id,value)
+                                    VALUES(@product_entity_type_id,@thumb,:store_id,:entity_id,:img )
+                                    ON DUPLICATE KEY UPDATE value = :img", array(
+                          ':store_id' => $DefaultStoreId,
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery` (attribute_id,entity_id,value)
+                                      VALUES(@gallery,:entity_id,:img )", array(
+                          ':entity_id' => $productId,
+                          ':img' => $img));
+                      $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery_value`
+                                            (value_id,store_id,label,position,disabled)
+                                      VALUES(LAST_INSERT_ID(),:store_id,'',1,0 )", array(
+                          ':store_id' => $DefaultStoreId));
                 }
-
-                if(!empty($image) && $image['attribute_code'] == 'small_image'){
-                  if($image['value']=='no_selection'){
-                  $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
-                                      (entity_type_id,attribute_id,store_id,entity_id,value)
-                                VALUES(@product_entity_type_id,@small,:store_id,:entity_id,:img )
-                                ON DUPLICATE KEY UPDATE value = :img", array(
-                      ':store_id' => $DefaultStoreId,
-                      ':entity_id' => $productId,
-                      ':img' => $img));
-                  }
-                }
-                if(!empty($image) && $image['attribute_code'] == 'thumbnail'){
-                  if($image['value']=='no_selection'){
-                  $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
-                                      (entity_type_id,attribute_id,store_id,entity_id,value)
-                                VALUES(@product_entity_type_id,@thumb,:store_id,:entity_id,:img )
-                                ON DUPLICATE KEY UPDATE value = :img", array(
-                      ':store_id' => $DefaultStoreId,
-                      ':entity_id' => $productId,
-                      ':img' => $img));
-                  }
-                }
-              }
-            }
-
-
-        $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery` (attribute_id,entity_id,value)
-                        VALUES(@gallery,:entity_id,:img )", array(
-            ':entity_id' => $productId,
-            ':img' => $img));
-        $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_media_gallery_value`
-                              (value_id,store_id,label,position,disabled)
-                        VALUES(LAST_INSERT_ID(),:store_id,'',0,0 )", array(
-            ':store_id' => $DefaultStoreId));
-
-
+            }  catch (Exception $e){}
     }
 
 }

@@ -154,6 +154,8 @@ class Iceshop_Icecatlive_Model_Observer
                   $DB_loger->insetrtUpdateLogValue('icecatlive_count_products_temp', $import_info['count_products']);
 
               }else{
+
+
                   if(!$product_onlynewproducts){
                       $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles` ON entity_id = prod_id WHERE prod_id IS NULL";
                   } else {
@@ -348,6 +350,7 @@ class Iceshop_Icecatlive_Model_Observer
             } elseif (!$import_id) {
                 $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_update_product', date('Y-m-d H:i:s'));
             }
+            $DB_loger->insetrtUpdateLogValue('icecatlive_lastinsert_product_id', $entity_id);
             if($crone){
                 return $import_info;
             }
@@ -357,6 +360,7 @@ class Iceshop_Icecatlive_Model_Observer
             $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product', $import_info['success_imported_product']);
             $DB_loger->insetrtUpdateLogValue('icecatlive_full_icecat_product', $import_info['full_icecat_product']);
             $import_info['done'] = 0;
+            $DB_loger->insetrtUpdateLogValue('icecatlive_lastinsert_product_id', $entity_id);
             if($crone){
                 return $import_info;
             }
@@ -382,11 +386,22 @@ class Iceshop_Icecatlive_Model_Observer
      }
    }
 
+    /**
+     * Write success import product title to iceshop_icecatlive_products_titles db table
+     * @param integer $prod_id
+     * @param string $prod_title
+     */
     public function _saveProductTitle($prod_id, $prod_title){
         $connection = $this->getDbConnection();
+        $db_res = Mage::getSingleton('core/resource')->getConnection('core_write');
+        $tablePrefix = '';
+        $tPrefix = (array) Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+          $tablePrefix = $tPrefix[0];
+        }
         $productsTitleTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/products_titles');
         try{
-            $sql = " INSERT INTO  " . $productsTitleTable . " ( prod_id, prod_title)
+            $sql = " INSERT INTO `" . $tablePrefix . "iceshop_icecatlive_products_titles` ( prod_id, prod_title)
                     VALUES('" . $prod_id . "', '" . $prod_title . "')
                     ON DUPLICATE KEY UPDATE
                     prod_title = VALUES(prod_title)";
@@ -413,10 +428,10 @@ class Iceshop_Icecatlive_Model_Observer
         $productsIdTable = Mage::getConfig()->getNode('default/icecatlive/noimportid_tables')->table_name;
         $productsIdTable = $tablePrefix . $productsIdTable;
         if (!$product_onlynewproducts) {
-          $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `" . $tablePrefix . $productsTitleTable ."` ON entity_id = prod_id WHERE prod_id IS NULL";
+          $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `" . $tablePrefix ."iceshop_icecatlive_products_titles` ON entity_id = prod_id WHERE prod_id IS NULL";
         } else {
           $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity`  AS cpe
-                                          LEFT JOIN `" . $tablePrefix . $productsTitleTable . "`  AS iipt
+                                          LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles`  AS iipt
                                                   ON cpe.`entity_id`= iipt.`prod_id`
                                           LEFT JOIN `" . $productsIdTable . "` AS iinpi
                                                   ON iinpi.`prod_id` = cpe.`entity_id`
@@ -451,7 +466,11 @@ class Iceshop_Icecatlive_Model_Observer
         return true;
     }
 
-
+    /**
+     * Mathod add Icecat import message to icecatlive_status product status
+     * @param integer $entity_id
+     * @param string $message
+     */
     public function _saveImportMessage($entity_id, $message){
 
         $connection = $this->getDbConnection();
@@ -498,6 +517,13 @@ class Iceshop_Icecatlive_Model_Observer
     }
 
 
+    /**
+     * Write to cache file import product information
+     * @param string $resultString
+     * @param integer $entity_id
+     * @param string $locale
+     * @return boolean
+     */
     public function _saveXmltoIcecatLiveCache($resultString, $entity_id, $locale){
         $current_prodCacheXml =  Mage::getBaseDir('var') . $this->_connectorCacheDir . 'iceshop_icecatlive_' . $entity_id . '_' . $locale;
         if(is_writable(Mage::getBaseDir('var') . $this->_connectorCacheDir)){
@@ -561,9 +587,7 @@ class Iceshop_Icecatlive_Model_Observer
     {
         $varDir = Mage::getBaseDir('var') . $this->_connectorCacheDir;
         if (!is_dir($varDir)) {
-          if (is_writable(Mage::getBaseDir('var') . $this->_connectorDir)){
             mkdir($varDir, 0777, true);
-          }
         }
     }
 
@@ -700,23 +724,28 @@ class Iceshop_Icecatlive_Model_Observer
         }
         $catalog_product_model = Mage::getModel('catalog/product');
         $_product = $catalog_product_model->load($entity_id);
-        $vendorName = $_product->getData($icecat_manufacturer_attribute_code);
+        if(!empty($_product)){
+          $vendorName = $_product->getData($icecat_manufacturer_attribute_code);
+          if(!empty($vendorName)){
+              $query = "SELECT * FROM `{$tablePrefix}eav_attribute`  AS ea WHERE ea.`attribute_code`='{$icecat_manufacturer_attribute_code}';";
+              $attribute = $db_res->fetchRow($query);
+              if($attribute['backend_type'] == 'int'){
+                  $query = "SELECT eaov.`value` FROM `{$tablePrefix}eav_attribute_option_value` AS eaov
+                                      LEFT JOIN `{$tablePrefix}eav_attribute_option` AS eao
+                                              ON eao.`option_id` = eaov.`option_id`
+                                      LEFT JOIN `{$tablePrefix}eav_attribute`  AS ea
+                                              ON ea.`attribute_id`=eao.`attribute_id`
+                             WHERE ea.`attribute_code`='{$icecat_manufacturer_attribute_code}' AND eaov.`option_id`={$vendorName} AND eaov.`store_id`={$storeId} ;";
+                  $attribute = $db_res->fetchRow($query);
 
-        $query = "SELECT * FROM `{$tablePrefix}eav_attribute`  AS ea WHERE ea.`attribute_code`='{$icecat_manufacturer_attribute_code}';";
-        $attribute = $db_res->fetchRow($query);
-        if($attribute['backend_type'] == 'int'){
-            $query = "SELECT eaov.`value` FROM `{$tablePrefix}eav_attribute_option_value` AS eaov
-                                LEFT JOIN `{$tablePrefix}eav_attribute_option` AS eao
-                                        ON eao.`option_id` = eaov.`option_id`
-                                LEFT JOIN `{$tablePrefix}eav_attribute`  AS ea
-                                        ON ea.`attribute_id`=eao.`attribute_id`
-                       WHERE ea.`attribute_code`='{$icecat_manufacturer_attribute_code}' AND eaov.`option_id`={$vendorName} AND eaov.`store_id`={$storeId} ;";
-            $attribute = $db_res->fetchRow($query);
+                  return $attribute['value'];
 
-            return $attribute['value'];
+              } elseif($attribute['backend_type'] == 'varchar') {
+                  return $vendorName;
+              }
 
-        } elseif($attribute['backend_type'] == 'varchar') {
-            return $vendorName;
+          }
+
         }
         return '';
     }

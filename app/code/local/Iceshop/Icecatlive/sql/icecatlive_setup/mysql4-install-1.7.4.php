@@ -1,4 +1,10 @@
 <?php
+$tablePrefix = (array)Mage::getConfig()->getTablePrefix();
+   if (!empty($tablePrefix[0])) {
+       $tablePrefix = $tablePrefix[0];
+   } else {
+       $tablePrefix = '';
+   }
 include_once 'uninstall-old-version.php';
 $unistaller_old_version = new Uninstall_Bintime_Icecatlive();
 $unistaller_old_version->uninstall();
@@ -24,9 +30,9 @@ CREATE TABLE IF NOT EXISTS {$this->getTable('iceshop_icecatlive_noimport_product
 	CREATE TABLE IF NOT EXISTS {$this->getTable('icecatlive/products_titles')} (
 		`prod_id` INT(255) UNSIGNED NOT NULL,
         `prod_title` VARCHAR(255) NULL DEFAULT NULL,
-        UNIQUE KEY (prod_id),
+        UNIQUE KEY (`prod_id`),
         FOREIGN KEY (prod_id)
-            REFERENCES catalog_product_entity(entity_id)
+            REFERENCES {$tablePrefix}catalog_product_entity(entity_id)
             ON DELETE CASCADE
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Iceshop Connector product titles';
 

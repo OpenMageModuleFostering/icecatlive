@@ -6,8 +6,13 @@
             display: 'none'
         });
     }
+    var error_limit = 0;
 
     function import_prod_info(update, full_import, error_import, process_hash){
+        if(error_limit > 5){
+          error_limit = 0;
+          error_import = 0;
+        }
         $('loading_mask_loader').setStyle({
             width: '430px',
             marginLeft: '-235px',
@@ -111,6 +116,7 @@
                 });
             },
             onFailure: function() {
+              error_limit = error_limit + 1;
               setTimeout(function(){ import_prod_info(update,0,1); }, 500);
             }
         });
