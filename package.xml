@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package>
+    <name>IcecatLive</name>
+    <version>1.1.0</version>
+    <stability>stable</stability>
+    <license uri="http://opensource.org/licenses/osl-3.0.php">OSL v.3</license>
+    <channel>community</channel>
+    <extends/>
+    <summary>ICEcat to Magento Open Source Connector</summary>
+    <description>ICEcat to Magento Open Source Connector - rich content in your magento shop</description>
+    <notes>- Improvement of product mapping&#xD;
+- Improvement of product description&#xD;
+- Added displaying icecat names on product listing/shopping cart&#xD;
+- Added all ICEcat data available as variables on product detail page&#xD;
+- Fixed issue with Yes/No indication&#xD;
+- Fixed image displaying on product listing/shopping cart</notes>
+    <authors><author><name>IceShop</name><user>IceShop</user><email>support@iceshop.nl</email></author></authors>
+    <date>2012-08-21</date>
+    <time>16:02:42</time>
+    <contents><target name="magelocal"><dir name="Bintime"><dir name="Icecatimport"><dir name="Block"><file name="Attributes.php" hash="ae93e0a964e8880e5b65fb5d08f1edf9"/><file name="Media.php" hash="a71e447a139b851da50937bccaf8bd37"/><file name="Related.php" hash="7ca2ad6520f2644ad1302c02d1cd6853"/><file name="Upsell.php" hash="624bd7b9c8708a67079efb2478a5a37d"/></dir><dir name="controllers"><file name="ImageController.php" hash="cdf4984c268346088729831b7abdf026"/></dir><dir name="etc"><file name="config.xml" hash="13d5b3c94451f13119c90a8added2374"/><file name="system.xml" hash="5138720902ed8c530d7c91b82d0f4935"/></dir><dir name="Helper"><dir name="Catalog"><file name="Image.php" hash="d300efd5dc51ad649023aab95d6b5fd7"/></dir><file name="Getdata.php" hash="b36ed387b06e2d2aa9860f693dda3f03"/><file name="Image.php" hash="000f0665c72b96ac03ca07dc3046a202"/><file name="Output.php" hash="21f46a7252ddfab8ae7d44384d205da2"/></dir><dir name="Model"><dir name="Catalog"><file name="Category.php" hash="21abeb7a7c2c85db8ce4d2f4ed203f50"/><file name="Product.php" hash="232f34dade19ddcf09d2da92e15cb682"/><file name="Search.php" hash="99c7eb706e67e01ea8167ebe88fe72d9"/></dir><dir name="System"><dir name="Config"><file name="Attributes.php" hash="23284e0d38677b4544fc87642a6bc8b5"/><file name="LanguageList.xml" hash="391ef56fab212879709780df5a7710e7"/><file name="Locales.php" hash="b8c699fa2a6f657b6d52d86e656872cc"/><file name="Subscription.php" hash="62168986f7a4eb3f10d38ac627aa6510"/></dir></dir><file name="Imagescollection.php" hash="718b575ef9472f85c323fa40f80bbd05"/><file name="Import.php" hash="2e243371496d5ddff593591a619aa348"/><file name="Observer.php" hash="b97aaab8b60091bb481ad25b28126896"/><file name="Relatedcollection.php" hash="2ddf62c43a66c3fd70bf651d0078dbc1"/></dir><dir name="sql"><dir name="icecatimport_setup"><file name="mysql4-install-0.1.0.php" hash="a8f750e7667f8ef0dd077100c9fddf48"/><file name="mysql4-upgrade-0.1.0-0.1.1.php" hash="c0581c5b00420492714bd7e3cc66cb6d"/></dir></dir></dir></dir></target><target name="mageetc"><dir name="modules"><file name="Bintime_Icecatimport.xml" hash="daf681aae3e710568d210313816a9d5f"/></dir></target></contents>
+    <compatible/>
+    <dependencies><required><php><min>5.2.0</min><max>6.0.0</max></php></required></dependencies>
+</package>
