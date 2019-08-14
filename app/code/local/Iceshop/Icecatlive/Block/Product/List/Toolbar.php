@@ -7,8 +7,10 @@ class Iceshop_Icecatlive_Block_Product_List_Toolbar extends Mage_Catalog_Block_P
 
     public function getCollection()
     {
+
         $ProductPriority = Mage::getStoreConfig('icecat_root/icecat/product_priority');
         $_productCollection = parent::getCollection();
+
 
         if (!$_productCollection->count() || $ProductPriority == 'Show') {
             return $_productCollection;
@@ -37,46 +39,17 @@ class Iceshop_Icecatlive_Block_Product_List_Toolbar extends Mage_Catalog_Block_P
 
     public function CheckIcecatData($_product)
     {
-        $connection = Mage::getSingleton('core/resource')->getConnection('core_read');
-        $mpn = Mage::getModel('catalog/product')->load($_product->getId())->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
-        $ean = Mage::getModel('catalog/product')->load($_product->getId())->getData(Mage::getStoreConfig('icecat_root/icecat/ean_code'));
-        $tableName = Mage::getSingleton('core/resource')->getTableName('icecatlive/data_products');
-        if(!empty($mpn)){
-            $selectCondition = $connection->select()
-                ->from(array('connector' => $tableName), new Zend_Db_Expr('connector.prod_title'))
-                ->where('connector.prod_id = ? ', $mpn);
-            $icecatName = $connection->fetchOne($selectCondition);
+        $tablePrefix = '';
+        $tPrefix = (array)Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+            $tablePrefix = $tPrefix[0];
         }
-        if(empty($icecatName) && !empty($ean)){
-            $selectCondition = $connection->select()
-                ->from(array('connector' => $tableName), new Zend_Db_Expr('connector.prod_title'))
-                ->where('connector.prod_ean = ? ', $ean);
-            $icecatName = $connection->fetchOne($selectCondition);
-        }
-        if (!empty($icecatName)) {
-            return true;
-        } else {
-            $tableName = Mage::getSingleton('core/resource')->getTableName('icecatlive/data');
-            $mappingTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/supplier_mapping');
-            $manufacturer = Mage::getModel('catalog/product')->load($_product->getId())->getData(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
-            if (isset($manufacturer) && !empty($manufacturer)) {
-                $selectCondition = $connection->select()
-                    ->from(array('connector' => $tableName), new Zend_Db_Expr('connector.prod_img'))
-                    ->joinInner(array('supplier' => $mappingTable), "connector.supplier_id = supplier.supplier_id AND supplier.supplier_symbol = {$connection->quote($manufacturer)}")
-                    ->where('connector.prod_id = ?', $mpn);
-                $imageURL = $connection->fetchOne($selectCondition);
-            }
-            if (empty($imageURL) && !empty($ean)) {
-                $selectCondition = $connection->select()
-                    ->from(array('connector' => $tableName), new Zend_Db_Expr('connector.prod_img'))
-                    ->joinLeft(array('products' => $tableName . '_products'), "connector.prod_id = products.prod_id")
-                    ->where('products.prod_ean = ?', trim($ean));
-                $imageURL = $connection->fetchOne($selectCondition);
-            }
+        $db_res = Mage::getSingleton('core/resource')->getConnection('core_write');
+        $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `"
+                . $tablePrefix . "iceshop_icecatlive_products_titles` ON entity_id = prod_id WHERE prod_id IS NOT NULL";
+        $entity_id = $db_res->fetchAll($query);
+        return in_array(array('entity_id' => $_product->getID()), $entity_id);
 
-            $icecat_prod = !empty($imageURL) ? true : false;
-            return $icecat_prod;
-        }
     }
 
 }

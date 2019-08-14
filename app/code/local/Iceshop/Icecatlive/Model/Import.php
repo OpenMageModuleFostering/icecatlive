@@ -18,7 +18,9 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
     private $relatedProducts = array();
     private $thumb;
     private $errorSystemMessage; //depricated
-    private $_cacheKey = 'iceshop_icecatlive_';
+    public $_cacheKey = 'iceshop_icecatlive_';
+    public $_connectorCacheDir = '/iceshop/icecatlive/cache/';
+    public $simpleDoc;
 
     private $_warrantyInfo = '';
     private $_shortSummaryDesc = '';
@@ -50,86 +52,24 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
             $this->entityId = $entityId;
             $error = '';
             if (null === $this->simpleDoc) {
+                $cacheDataXml = $this->_getXmlIcecatLiveCache($this->entityId, $locale);
+                if(empty($cacheDataXml)){
+                    $cacheDataXml = Mage::app()->getCache()->load($this->_cacheKey . $entityId . '_' . $locale);
+                }
+                if (!empty($cacheDataXml)) {
 
-                if (!$cacheDataXml = Mage::app()->getCache()->load($this->_cacheKey . $entityId . '_' . $locale)) {
-
-                    $dataUrl = 'http://data.icecat.biz/xml_s3/xml_server3.cgi';
-                    $successRespondByMPNVendorFlag = false;
-                    if (empty($userName)) {
-                        $this->errorMessage = "No ICEcat login provided";
-                        return false;
-                    }
-                    if (empty($userPass)) {
-                        $this->errorMessage = "No ICEcat password provided";
-                        return false;
-                    }
-                    if (empty($locale)) {
-                        $this->errorMessage = "Please specify product description locale";
-                        return false;
-                    }
-                    if ((empty($productId) && empty($ean_code))
-                        || (empty($vendorName) && empty($ean_code))
-                    ) {
-                        $this->errorMessage = 'Given product has invalid IceCat data';
-                        return false;
-                    }
-
-                    if (!empty($productId) && !empty($vendorName)) {
-
-                        $resultString = $this->_getIceCatData($userName, $userPass, $dataUrl, array(
-                            "prod_id" => $productId,
-                            "lang" => $locale,
-                            "vendor" => $vendorName,
-                            "output" => 'productxml'
-                        ));
-
-                        if ($this->parseXml($resultString)) {
-                            if (!$this->checkIcecatResponse()) {
-                                $successRespondByMPNVendorFlag = true;
-                            }
-                        }
-
-                    }
-                    // if get data by MPN & brand name wrong => trying by Ean code
-                    if (!$successRespondByMPNVendorFlag) {
-                        if (!empty($ean_code)) {
-                            $resultString = $this->_getIceCatData($userName, $userPass, $dataUrl, array(
-                                'ean_upc' => trim($ean_code),
-                                'lang' => $locale,
-                                'output' => 'productxml'
-                            ));
-                            if (!$this->parseXml($resultString)) {
-                                $error = true;
-                                $this->simpleDoc = null;
-                            }
-                            if ($this->checkIcecatResponse()) {
-                                $error = true;
-                                $this->simpleDoc = null;
-                            }
-                        } else {
-                            $error = true;
-                        }
-                        if ($error) {
-                            $this->errorMessage = 'Given product has invalid IceCat data';
-                            return false;
-                        }
-                    }
-
-                    Mage::app()->getCache()->save($resultString, $this->_cacheKey . $entityId . '_' . $locale);
-                } else {
                     $resultString = $cacheDataXml;
 
                     if (!$this->parseXml($resultString)) {
                         return false;
                     }
-                    if ($this->checkIcecatResponse()) {
+                    if ($this->checkIcecatResponse($this->simpleDoc->Product['ErrorMessage'])) {
                         return false;
                     }
                 }
 
                 $this->loadProductDescriptionList();
                 $this->loadOtherProductParams($productId);
-                $this->loadGalleryPhotos();
                 Varien_Profiler::start('Iceshop FILE RELATED');
                 $this->loadRelatedProducts();
                 Varien_Profiler::stop('Iceshop FILE RELATED');
@@ -137,11 +77,14 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
             return true;
         }
     }
-
-    private function _getIceCatData($userName, $userPass, $dataUrl, $productAttributes)
+    public function _getXmlIcecatLiveCache($entity_id, $locale){
+        $current_prodCacheXml =  Mage::getBaseDir('var') . $this->_connectorCacheDir . 'iceshop_icecatlive_' . $entity_id . '_' . $locale;
+        $current_prodCache = file_get_contents($current_prodCacheXml);
+        return $current_prodCache;
+    }
+    public function _getIceCatData($userName, $userPass, $dataUrl, $productAttributes)
     {
         try {
-
             $webClient = new Zend_Http_Client();
             $webClient->setUri($dataUrl);
             $webClient->setMethod(Zend_Http_Client::GET);
@@ -169,69 +112,52 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
     {
         return $this->productName;
     }
-
-    public function getGalleryPhotos()
-    {
-
-        return $this->galleryPhotos;
-    }
-
     public function getThumbPicture()
     {
         return $this->thumb;
     }
-
-    public function getImg($productId)
-    {
-
-        $model = Mage::getModel('catalog/product');
-        $_product = $model->load($productId);
-        $entity_id = $_product->getEntityId();
-        $ean_code = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/ean_code'));
-        $vendorName = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
-        $locale = Mage::getStoreConfig('icecat_root/icecat/language');
-        if ($locale == '0') {
-            $systemLocale = explode("_", Mage::app()->getLocale()->getLocaleCode());
-            $locale = $systemLocale[0];
-        }
-        $userLogin = Mage::getStoreConfig('icecat_root/icecat/login');
-        $userPass = Mage::getStoreConfig('icecat_root/icecat/password');
-        $mpn = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
-        $this->getProductDescription($mpn, $vendorName, $locale, $userLogin, $userPass, $entity_id, $ean_code);
-        if ($this->simpleDoc) {
-            return $this->highPicUrl;
-        }
-    }
-
     /**
      * load Gallery array from XML
      */
-    private function loadGalleryPhotos()
+    public function loadGalleryPhotos($galleryPhotos)
     {
         $Imagepriority = Mage::getStoreConfig('icecat_root/icecat/image_priority');
         if($Imagepriority != 'Db'){
-            $galleryPhotos = $this->simpleDoc->Product->ProductGallery->ProductPicture;
             if (!count($galleryPhotos)) {
                 return false;
             }
+
             foreach ($galleryPhotos as $photo) {
                 if ($photo["Size"] > 0) {
-                    $picUrl = (string)$photo["Pic"];
+                    $picUrl = $this->changeHostsImages((string)$photo["Pic"]);
                     if (!empty($picUrl) && strpos($picUrl, 'feature_logo') <= 0) {
-                        $picHeight = (int)$photo["PicHeight"];
-                        $picWidth = (int)$photo["PicWidth"];
                         $product_id = $this->entityId;
-                        $image_saved_file = $this->saveImg($product_id, $picUrl, 'file');
-
-                        array_push($this->galleryPhotos, array(
-                            'height' => $picHeight,
-                            'width' => $picWidth,
-                            'pic'   => $image_saved_file
-                        ));
+                        $this->saveImg($product_id, $picUrl, 'file');
                     }
                 }
+
             }
         }
+    }
+
+
+
+    public function _saveProductCatalogImage($entityId, $productTag){
+        $Imagepriority = Mage::getStoreConfig('icecat_root/icecat/image_priority');
+        if ($Imagepriority != 'Db') {
+      if (!empty($productTag["HighPic"])) {
+                $this->highPicUrl = $this->saveImg($entityId, $this->changeHostsImages((string)$productTag["HighPic"]), 'image');
+            } else if (!empty($productTag["LowPic"])) {
+                $this->lowPicUrl = $this->saveImg($entityId, $this->changeHostsImages((string)$productTag["LowPic"]), 'image');
+            } else {
+                $this->thumb = $this->saveImg($entityId, $this->changeHostsImages((string)$productTag["ThumbPic"]), 'image');
+            }
+        }
+    }
+
+    public function changeHostsImages($productTag){
+	$image_path = str_replace("http:", "https:", $productTag);
+	return $image_path;
     }
 
     public function getErrorMessage()
@@ -242,16 +168,19 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
     /**
      * Checks response XML for error messages
      */
-    private function checkIcecatResponse()
+    public function checkIcecatResponse($errorMessage)
     {
-        $errorMessage = $this->simpleDoc->Product['ErrorMessage'];
         if ($errorMessage != '') {
             if (preg_match('/^No xml data/', $errorMessage)) {
-                $this->errorSystemMessage = $errorMessage;
+                $this->errorSystemMessage = (string)$errorMessage;
                 return true;
             }
             if (preg_match('/^The specified vendor does not exist$/', $errorMessage)) {
-                $this->errorSystemMessage = $errorMessage;
+                $this->errorSystemMessage = (string)$errorMessage;
+                return true;
+            }
+            if (preg_match('/^You are not allowed to have Full ICEcat access$/', $errorMessage)) {
+                $this->errorMessage = "Warning: " . $errorMessage;
                 return true;
             }
             $this->errorMessage = "Ice Cat Error: " . $errorMessage;
@@ -397,16 +326,6 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
         $this->_pdfUrl = (string)$productTag->ProductDescription['PDFURL'];
         $this->_multimedia = $productTag->ProductMultimediaObject->MultimediaObject;
 
-        $Imagepriority = Mage::getStoreConfig('icecat_root/icecat/image_priority');
-        if ($Imagepriority != 'Db') {
-            if (!empty($productTag["HighPic"])) {
-                $this->highPicUrl = $this->saveImg($this->entityId, (string)$productTag["HighPic"], 'image');
-            } else if (!empty($productTag["LowPic"])) {
-                $this->lowPicUrl = $this->saveImg($this->entityId, (string)$productTag["LowPic"], 'small');
-            } else {
-                $this->thumb = $this->saveImg($this->entityId, (string)$productTag["ThumbPic"], 'thumb');
-            }
-        }
         $this->productName = (string)$productTag["Title"];
         $this->productId = (string)$productTag['Prod_id'];
         $this->vendor = (string)$productTag->Supplier['Name'];
@@ -443,7 +362,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
      * parse response XML: to SimpleXml
      * @param string $stringXml
      */
-    private function parseXml($stringXml)
+    public function parseXml($stringXml)
     {
         $current_page = Mage::app()->getFrontController()->getRequest()->getControllerName();
 
@@ -516,9 +435,9 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
                                 entity_type_code = 'catalog_product';
                          SELECT @gallery := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
                                `attribute_code` = 'media_gallery' AND entity_type_id = @product_entity_type_id;
-                         SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id; 
+                         SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id;
                          SELECT @small := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
-                               `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id; 
+                               `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id;
                          SELECT @thumb := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
                                `attribute_code` = 'thumbnail' AND entity_type_id = @product_entity_type_id;";
 
@@ -544,7 +463,6 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
             return $img;
         }
     }
-
     public function addProductImageQuery($productId, $img, $type = '')
     {
         $db = Mage::getSingleton('core/resource')->getConnection('core_write');
@@ -561,9 +479,9 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
                                 entity_type_code = 'catalog_product';
                          SELECT @gallery := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
                                `attribute_code` = 'media_gallery' AND entity_type_id = @product_entity_type_id;
-                         SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id; 
+                         SELECT @base := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE `attribute_code` = 'image' AND entity_type_id = @product_entity_type_id;
                          SELECT @small := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
-                               `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id; 
+                               `attribute_code` = 'small_image' AND entity_type_id = @product_entity_type_id;
                          SELECT @thumb := `attribute_id` FROM `" . $tablePrefix . "eav_attribute` WHERE
                                `attribute_code` = 'thumbnail' AND entity_type_id = @product_entity_type_id;";
 
@@ -574,7 +492,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
         if (empty($type) || $type == 'image') {
 
             $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
-                                (entity_type_id,attribute_id,store_id,entity_id,value) 
+                                (entity_type_id,attribute_id,store_id,entity_id,value)
                           VALUES(@product_entity_type_id,@base,:store_id,:entity_id,:img )
                           ON DUPLICATE KEY UPDATE value = :img", array(
                 ':store_id' => $DefaultStoreId,
@@ -582,7 +500,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
                 ':img' => $img));
 
             $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
-                                (entity_type_id,attribute_id,store_id,entity_id,value) 
+                                (entity_type_id,attribute_id,store_id,entity_id,value)
                           VALUES(@product_entity_type_id,@small,:store_id,:entity_id,:img )
                           ON DUPLICATE KEY UPDATE value = :img", array(
                 ':store_id' => $DefaultStoreId,
@@ -590,7 +508,7 @@ class Iceshop_Icecatlive_Model_Import extends Mage_Core_Model_Abstract
                 ':img' => $img));
 
             $db->query(" INSERT INTO `" . $tablePrefix . "catalog_product_entity_varchar`
-                                (entity_type_id,attribute_id,store_id,entity_id,value) 
+                                (entity_type_id,attribute_id,store_id,entity_id,value)
                           VALUES(@product_entity_type_id,@thumb,:store_id,:entity_id,:img )
                           ON DUPLICATE KEY UPDATE value = :img", array(
                 ':store_id' => $DefaultStoreId,

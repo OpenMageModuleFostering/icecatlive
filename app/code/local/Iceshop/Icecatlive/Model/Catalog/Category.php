@@ -11,6 +11,7 @@ class Iceshop_Icecatlive_Model_Catalog_Category extends Mage_Catalog_Model_Categ
     public function getProductCollection()
     {
         $collection = parent::getProductCollection();
+
         $collection->addAttributeToSelect(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
         return $collection;
     }

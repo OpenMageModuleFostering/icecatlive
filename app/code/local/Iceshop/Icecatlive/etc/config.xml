@@ -2,9 +2,22 @@
 <config>
     <modules>
         <Iceshop_Icecatlive>
-            <version>1.6.0</version>
+            <version>1.7.0</version>
         </Iceshop_Icecatlive>
     </modules>
+    <default>
+    <icecatlive>
+        <patch>
+            <template_file_path><![CDATA[frontend/default/default/template/iceshop/icecatlive/groupattributes.phtml]]></template_file_path>
+        </patch>
+        <noimportid_tables>
+             <table_name>iceshop_icecatlive_noimport_products_id</table_name>
+        </noimportid_tables>
+        <extensions_logs_tables>
+             <table_name>iceshop_icecatlive_extensions_logs</table_name>
+        </extensions_logs_tables>
+    </icecatlive>
+    </default>
     <global>
         <helpers>
             <icecatlive>
@@ -12,19 +25,17 @@
             </icecatlive>
             <catalog>
                 <rewrite>
-                    <image>Iceshop_Icecatlive_Helper_Catalog_Image</image>
                     <output>Iceshop_Icecatlive_Helper_Output</output>
                 </rewrite>
             </catalog>
         </helpers>
         <blocks>
-            <Iceshop_Icecatlive>
+            <icecatlive>
                 <class>Iceshop_Icecatlive_Block</class>
-            </Iceshop_Icecatlive>
+            </icecatlive>
             <catalog>
                 <rewrite>
                     <product_view_attributes>Iceshop_Icecatlive_Block_Attributes</product_view_attributes>
-                    <product_view_media>Iceshop_Icecatlive_Block_Media</product_view_media>
                     <product_list_related>Iceshop_Icecatlive_Block_Related</product_list_related>
                     <product_list_upsell>Iceshop_Icecatlive_Block_Upsell</product_list_upsell>
                     <product_list_toolbar>Iceshop_Icecatlive_Block_Product_List_Toolbar</product_list_toolbar>
@@ -43,15 +54,9 @@
             </icecatlive>
             <icecatlive_resource_eav_mysql4>
                 <entities>
-                    <data>
-                        <table>iceshop_icecatlive_connector_data</table>
-                    </data>
-                    <data_products>
-                        <table>iceshop_icecatlive_connector_data_products</table>
-                    </data_products>
-                    <supplier_mapping>
-                        <table>iceshop_icecatlive_supplier_mapping</table>
-                    </supplier_mapping>
+                    <products_titles>
+                        <table>iceshop_icecatlive_products_titles</table>
+                    </products_titles>
                 </entities>
             </icecatlive_resource_eav_mysql4>
             <catalog>
@@ -66,21 +71,6 @@
                 </rewrite>
             </catalogsearch_mysql4>
         </models>
-        <!--
-        <routers>
-            <catalog>
-                <rewrite>
-                    <product>
-                        <to>Iceshop_Icecatlive/product</to>
-                        <override_actions>false</override_actions>
-                        <actions>
-                            <view><to>Iceshop_Icecatlive/product/view</to></view>
-                        </actions>
-                    </product>
-                </rewrite>
-            </catalog>
-        </routers>
-        -->
         <resources>
             <icecatlive_setup>
                 <setup>
@@ -131,27 +121,17 @@
         </translate>
     </frontend>
     <adminhtml>
-        <acl>
-            <resources>
-                <admin>
-                    <children>
-                        <system>
-                            <children>
-                                <config>
-                                    <children>
-                                        <icecat_root translate="title" module="customer">
-                                            <title>Ice Cat Module powered by Iceshop company</title>
-                                            <sort_order>200</sort_order>
-                                        </icecat_root>
-                                    </children>
-                                </config>
-                            </children>
-                        </system>
-                    </children>
-                </admin>
-            </resources>
-        </acl>
-        <events></events>
+        <events>
+            <adminhtml_cache_refresh_type>
+                <observers>
+                    <iceshop_icecatlive_model_observer>
+                        <type>singleton</type>
+                        <class>Iceshop_Icecatlive_Model_Observer</class>
+                        <method>adminhtml_cache_refresh_type</method>
+                    </iceshop_icecatlive_model_observer>
+                </observers>
+            </adminhtml_cache_refresh_type>
+        </events>
         <layout>
             <updates>
                 <icecatlive>
@@ -169,17 +149,24 @@
             </modules>
         </translate>
     </adminhtml>
-
     <crontab>
         <jobs>
-            <icecatlive>
+            <icecatlive_load_data>
                 <schedule>
-                    <cron_expr>0 0 * * 0</cron_expr>
+                    <cron_expr>0 0 1 * *</cron_expr>
                 </schedule>
                 <run>
                     <model>icecatlive/observer::load</model>
                 </run>
-            </icecatlive>
+            </icecatlive_load_data>
+            <icecatlive_load_updata>
+                <schedule>
+                    <cron_expr>0 0 * * 0</cron_expr>
+                </schedule>
+                <run>
+                    <model>icecatlive/observer::loadUpdate</model>
+                </run>
+            </icecatlive_load_updata>
         </jobs>
     </crontab>
 </config>

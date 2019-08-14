@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<layout>
+    <adminhtml_system_config_edit>
+        <reference name="head">
+            <action method="addCss"><stylesheet>iceshop/icecatlive/styles.css</stylesheet></action>
+            <action method="addJs"><script>ICEshop/Icecatlive/jquery-1.9.1.min.js</script></action>
+            <action method="addJs"><script>ICEshop/Icecatlive/multi-lingual-store-field.js</script></action>
+            <action method="addJs"><script>ICEshop/Icecatlive/script.js</script></action>
+        </reference>
+    </adminhtml_system_config_edit>
+    <default>
+        <reference name="notifications">
+            <reference name="head">
+                <action method="addCss"><stylesheet>iceshop/icecatlive/styles.css</stylesheet></action>
+            </reference>
+            <block type="icecatlive/adminhtml_notifications" name="icecatlive_notifications" template="iceshop/icecatlive/notifications.phtml"/>
+        </reference>
+    </default>
+</layout>

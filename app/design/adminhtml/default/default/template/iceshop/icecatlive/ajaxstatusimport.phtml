@@ -1,39 +1,13 @@
 <script type="text/javascript">
-    function importStatusMonitor(){
-        new Ajax.Request('<?php echo Mage::helper('adminhtml')->getUrl('adminhtml/adminhtml_importprogress/check'); ?>', {
-            method:     'get',
-            onSuccess: function(transport){
-                            var response = "";
-                            var step = transport.responseJSON.size();
-                            transport.responseJSON.forEach(function(element, index, array){
-                                index = index+1;
-                                response += "<p>"+index+". "+element+"</p>";
-                            });
-                            if($('loading_mask_loader').select('#icecatlive-response').size() == 0){
-                                $('loading_mask_loader').insert({bottom: '<div id="icecatlive-response" style="text-align: left">'+response+'</div>'});
-                            }else{
-                                $('icecatlive-response').replace('<div id="icecatlive-response" style="text-align: left">'+response+'</div>');
-                            }
-                            if($('loading_mask_loader').select('#icecatlive-curstep-response').size() == 0){
-                                $('icecatlive-response').insert({before: '<p id="icecatlive-curstep-response">Current step: '+step+'/9</div>'});
-                            }else{
-                                $('icecatlive-curstep-response').replace('<p id="icecatlive-curstep-response">Current step: '+step+'/9</div>');
-                            }
-                            if(step == 9){
-                                $$('#loading_mask_loader > img')[0].setStyle({
-                                    'display': 'none'
-                                });
-                                var str = $('loading_mask_loader').innerHTML;
-                                str = str.replace('<br>Please wait...', '');
-                                $('loading_mask_loader').innerHTML = str;
-                                $('icecatlive-response').replace('<div id="icecatlive-response" style="text-align: left">'+response+'</div><br><button id="icecatlive_button_finish" onclick="javascript:hide_progress_popup(); return false;" title="Finish import" type="button" class="scalable " style=""><span><span><span>Finish import</span></span></span></button>');
-                                clearInterval(timerId);
-                            }
-
-                        }
+    function hide_progress_popup(){
+        document.getElementById("icecatlive_button_finish").remove();
+        document.getElementById('icecatlive-response').innerHTML = '';
+        $('loading-mask').setStyle({
+            display: 'none'
         });
     }
-    function check() {
+
+    function import_prod_info(update, full_import, error_import){
         $('loading_mask_loader').setStyle({
             width: '430px',
             marginLeft: '-235px',
@@ -45,33 +19,97 @@
         $$('#loading_mask_loader > img')[0].setStyle({
             'display': 'inline'
         });
-        timerId = setInterval("importStatusMonitor()", 5000);
-        new Ajax.Request('<?php echo $this->getAjaxCheckUrl() ?>', {
+        new Ajax.Request('<?php echo Mage::helper('adminhtml')->getUrl('adminhtml/adminhtml_importproductinfo/check'); ?>', {
             method:     'get',
+            parameters: {update: update, full_import: full_import, error_import: error_import},
             onSuccess: function(transport){
-                if (transport.responseText){
-                    alert(transport.responseText);
-                    clearInterval(timerId);
-                    $('loading-mask').setStyle({
+                var import_info = JSON.parse(transport.responseText);
+                var count_products = '<p> Found products in shop: '+import_info.count_products+'</p>';
+                var current_products = '<p> Current product: '+import_info.current_product+'</p>';
+                var error = '';
+                var success_imported = '';
+                var full_icecat_product = '';
+                var error_imported = '';
+                var system_error = '';
+                if(import_info.error){
+                    error = '<p class="icecatlive_error">'+import_info.error+'</p>';
+                }
+                if(import_info.success_imported_product){
+                    success_imported = '<p> Imported information for products: '+import_info.success_imported_product+'</p>';
+                }
+                if(import_info.error_imported_product){
+                    error_imported = '<p> Did not imported information for products: '+import_info.error_imported_product+'</p>';
+                }
+                if(import_info.full_icecat_product){
+                    full_icecat_product = '<p> Full icecat products: '+import_info.full_icecat_product+'</p>';
+                }
+                if(import_info.system_error){
+                    system_error = '<p class="icecatlive_error"> System error: '+import_info.system_error+'</p>';
+                }
+                if(import_info.done != 1){
+                    if($('loading_mask_loader').select('#icecatlive-response').size() == 0){
+                        $('loading_mask_loader').insert({bottom: '<div id="icecatlive-response" style="text-align: left">'
+                            +count_products
+                            +current_products
+                            +success_imported
+                            +full_icecat_product
+                            +error_imported
+                            +error
+                            +system_error
+                            +'</div>'});
+                    }else{
+                        $('icecatlive-response').replace('<div id="icecatlive-response" style="text-align: left">'
+                            +count_products
+                            +current_products
+                            +success_imported
+                            +full_icecat_product
+                            +error_imported
+                            +error
+                            +system_error
+                            +'</div>');
+                    }
+                    import_prod_info(update);
+                }else{
+                    if($('loading_mask_loader').select('#icecatlive-response').size() == 0){
+                        $('loading_mask_loader').insert({bottom: '<div id="icecatlive-response" style="text-align: left">'
+                            +count_products
+                            +current_products
+                            +success_imported
+                            +full_icecat_product
+                            +error_imported
+                            +error
+                            +system_error
+                            +'</div>'
+                            +'<button id="icecatlive_button_finish" onclick="javascript:hide_progress_popup(); return false;" title="Finish import" type="button" class="scalable " style=""><span><span><span>Finish import</span></span></span></button>'});
+                    }else{
+                    $('icecatlive-response').replace('<div id="icecatlive-response" style="text-align: left">'
+                        +count_products
+                        +current_products
+                        +success_imported
+                        +full_icecat_product
+                        +error_imported
+                        +error
+                        +system_error
+                        +'</div>'
+                        +'<button id="icecatlive_button_finish" onclick="javascript:hide_progress_popup(); return false;" title="Finish import" type="button" class="scalable " style=""><span><span><span>Finish import</span></span></span></button>');
+                    }
+                    $$('#loading_mask_loader > img')[0].setStyle({
                         'display': 'none'
                     });
+                    var str = $('loading_mask_loader').innerHTML;
+                    str = str.replace('<br>Please wait...', '');
+                    $('loading_mask_loader').innerHTML = str;
                 }
             },
-            onComplete: function(transport){
-                    clearInterval(timerId);
-                    $('loading_mask').setStyle({
-                        'display': 'block'
-                    });
+            onComplete: function(){
+                $('loading_mask').setStyle({
+                    display: 'block'
+                });
+            },
+            onFailure: function() {
+              setTimeout(function(){ import_prod_info(update,0,1); }, 500);
             }
         });
-    }
-    function hide_progress_popup(){
-        $('loading-mask').setStyle({
-            display: 'none'
-        });
-        $('icecatlive-curstep-response').remove();
-        $('icecatlive-response').remove();
-        $('icecatlive_button_finish').remove();
     }
     $('config_edit_form').on('change', '.input-text, .select', function(event) {
         if(!$('icecatlive-saveconfig')){
@@ -80,5 +118,6 @@
             $('icecatlive_button').insert({before: '<p id="icecatlive-saveconfig">Please save configuration, and after start import</p>'});
         }
     });
+
 </script>
 <?php echo $this->getButtonHtml(); ?>

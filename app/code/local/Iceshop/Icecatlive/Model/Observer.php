@@ -9,17 +9,11 @@ class Iceshop_Icecatlive_Model_Observer
     /**
      * Our process ID.
      */
-    private $process_id = 'iceshop_icecat';
-    private $indexProcess;
-
-
-    private $errorMessage;
     private $connection;
-    private $freeExportURLs = 'http://data.icecat.biz/export/freeurls/export_urls_rich.txt.gz';
-    private $fullExportURLs = 'http://data.icecat.biz/export/export_urls_rich.txt.gz';
-    private $productinfoUrL = 'http://data.icecat.biz/prodid/prodid_d.txt.gz';
-    protected $_supplierMappingUrl = 'http://data.icecat.biz/export/freeurls/supplier_mapping.xml';
+
+
     protected $_connectorDir = '/iceshop/icecatlive/';
+    public $_connectorCacheDir = '/iceshop/icecatlive/cache/';
     protected $_productFile;
     protected $_supplierFile;
 
@@ -27,69 +21,388 @@ class Iceshop_Icecatlive_Model_Observer
     {
         $this->_init('icecatlive/observer');
     }
+    public function loadProductInfoIntoCache($import_id = 0, $crone=0){
+        $product_onlynewproducts = Mage::getStoreConfig('icecat_root/icecat/product_onlynewproducts');
+        $import_info = array();
+
+        $DB_loger = Mage::helper('icecatlive/db');
+        if(!$import_id){
+            if($_GET['full_import'] == 1){
+                $DB_loger->deleteLogKey('icecatlive_full_icecat_product_temp');
+                $DB_loger->deleteLogKey('icecatlive_current_product_temp');
+                $DB_loger->deleteLogKey('icecatlive_error_imported_product_temp');
+                $DB_loger->deleteLogKey('icecatlive_success_imported_product_temp');
+                $DB_loger->deleteLogKey('icecatlive_count_products_temp');
+                $DB_loger->deleteLogKey('import_icecat_server_error_message');
+            }
+            $import_info['current_product'] = $DB_loger->getLogValue('icecatlive_current_product_temp');
+            $import_info['count_products'] = $DB_loger->getLogValue('icecatlive_count_products_temp');
+
+
+
+            if(empty($import_info['count_products'])){
+                if($_GET['update'] != 1 && !$import_id){
+                    $DB_loger->deleteLogKey('icecatlive_enddate_imported_product');
+                    $DB_loger->deleteLogKey('icecatlive_startdate_update_product');
+                    $DB_loger->deleteLogKey('icecatlive_enddate_update_product');
+                    $DB_loger->insetrtUpdateLogValue('icecatlive_startdate_imported_product', date('Y-m-d H:i:s'));
+                } elseif (!$import_id) {
+                    $DB_loger->deleteLogKey('icecatlive_enddate_update_product');
+                    $DB_loger->insetrtUpdateLogValue('icecatlive_startdate_update_product', date('Y-m-d H:i:s'));
+                }
+            }
+            $import_info['success_imported_product'] = $DB_loger->getLogValue('icecatlive_success_imported_product_temp');
+            $import_info['error_imported_product'] = $DB_loger->getLogValue('icecatlive_error_imported_product_temp');
+            $import_info['full_icecat_product'] = $DB_loger->getLogValue('icecatlive_full_icecat_product_temp');
+            if(empty($import_info['current_product'])){
+                $import_info['current_product'] = 1;
+                $DB_loger->insetrtUpdateLogValue('icecatlive_current_product_temp', $import_info['current_product']);
+            }else{
+                if($_GET['error_import'] != 1){
+                    $import_info['current_product'] = $import_info['current_product'] + 1;
+                }
+                    $DB_loger->insetrtUpdateLogValue('icecatlive_current_product_temp', $import_info['current_product']);
+            }
+        }
+        $db_res = Mage::getSingleton('core/resource')->getConnection('core_write');
+        $catalog_product_model = Mage::getModel('catalog/product');
+        $userName = Mage::getStoreConfig('icecat_root/icecat/login');
+        $userPass = Mage::getStoreConfig('icecat_root/icecat/password');
+        $locale = Mage::getStoreConfig('icecat_root/icecat/language');
+        if ($locale == '0') {
+            $systemLocale = explode("_", Mage::app()->getLocale()->getLocaleCode());
+            $locale = $systemLocale[0];
+        }
+        $tablePrefix = '';
+        $tPrefix = (array)Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+            $tablePrefix = $tPrefix[0];
+        }
+        if(!$import_id){
+          if(empty($import_info['count_products'])){
+              if($_GET['update'] != 1){
+                  if(!$product_onlynewproducts){
+                      $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity`";
+                  } else {
+                      $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity` AS cpe
+                                                LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_noimport_products_id` AS iinp
+                                                       ON cpe.`entity_id` = iinp.`prod_id`
+                                            WHERE iinp.`prod_id` IS NULL;";
+                  }
+                  $count_products = $db_res->fetchRow($query);
+                  $import_info['count_products'] = $count_products['COUNT(*)'];
+                  $DB_loger->insetrtUpdateLogValue('icecatlive_count_products_temp', $import_info['count_products']);
+
+              }else{
+                  if(!$product_onlynewproducts){
+                      $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles` ON entity_id = prod_id WHERE prod_id IS NULL";
+                  } else {
+                      $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity`  AS cpe
+                                      LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles`  AS iipt
+                                              ON cpe.`entity_id`= iipt.`prod_id`
+                                      LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_noimport_products_id` AS iinpi
+                                              ON iinpi.`prod_id` = cpe.`entity_id`
+                                WHERE iipt.`prod_id` IS NULL AND iinpi.`prod_id` IS NULL;";
+                  }
+                  $count_products = $db_res->fetchRow($query);
+                  $import_info['count_products'] = $count_products['COUNT(*)'];
+                  $DB_loger->insetrtUpdateLogValue('icecatlive_count_products_temp', $import_info['count_products']);
+              }
+          }
+
+          if($_GET['update'] != 1){
+                $prev_current_product = $import_info['current_product'] - 1;
+             if(!$product_onlynewproducts){
+                  $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` LIMIT ". $prev_current_product .", 1";
+              } else {
+                  $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` AS cpe
+                                    LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_noimport_products_id` AS iinpi
+                                                  ON cpe.`entity_id` = iinpi.`prod_id`
+                            WHERE iinpi.`prod_id` IS NULL LIMIT ". $prev_current_product .", 1";
+              }
+              $entity_id = $db_res->fetchRow($query);
+              $entity_id = $entity_id['entity_id'];
+          }else{
+              $prev_current_product = $import_info['current_product'] - 1;
+              if(!$product_onlynewproducts){
+                  $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles` ON entity_id = prod_id WHERE prod_id IS NULL LIMIT ". $prev_current_product .", 1";
+              } else {
+                  $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` AS cpe
+                                          LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles` AS iipt
+                                                 ON cpe.`entity_id` = iipt.`prod_id`
+                                          LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_noimport_products_id` AS iinpi
+                                                 ON iinpi.`prod_id` = cpe.`entity_id`
+                                  WHERE iipt.`prod_id` IS NULL AND iinpi.`prod_id` IS NULL LIMIT ". $prev_current_product .", 1";
+              }
+              $entity_id = $db_res->fetchRow($query);
+              $entity_id = $entity_id['entity_id'];
+          }
+        }
+        if($import_id){
+            $entity_id = $import_id;
+        }
+
+        if(!empty($entity_id)){
+            $_product = $catalog_product_model->load($entity_id);
+            $ean_code = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/ean_code'));
+            $vendorName = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
+            $mpn = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
+            $dataUrl = 'https://data.icecat.biz/xml_s3/xml_server3.cgi';
+
+            $icecatliveImportModel = new Iceshop_Icecatlive_Model_Import();
+            $icecatliveImportModel->entityId = $entity_id;
+
+            if (!empty($mpn) && !empty($vendorName)) {
+                $resultString = $icecatliveImportModel->_getIceCatData($userName, $userPass, $dataUrl, array(
+                    "prod_id" => $mpn,
+                    "lang" => $locale,
+                    "vendor" => $vendorName,
+                    "output" => 'productxml'
+                ));
+
+                if ($xml_result = $this->_parseXml($resultString)) {
+                    if (!$icecatliveImportModel->checkIcecatResponse($xml_result->Product['ErrorMessage'])) {
+                        $successRespondByMPNVendorFlag = true;
+                    }
+                }
+
+            }
+            // if get data by MPN & brand name wrong => trying by Ean code
+            if (!$successRespondByMPNVendorFlag) {
+                if (!empty($ean_code)) {
+                    $resultString = $icecatliveImportModel->_getIceCatData($userName, $userPass, $dataUrl, array(
+                        'ean_upc' => trim($ean_code),
+                        'lang' => $locale,
+                        'output' => 'productxml'
+                    ));
+                    if ($xml_result = $this->_parseXml($resultString)) {
+                        if ($icecatliveImportModel->checkIcecatResponse($xml_result->Product['ErrorMessage'])) {
+                            $error = true;
+                        }
+                    }
+                } else {
+                    $error = true;
+                }
+            }
+            if(!$error){
+                if(!$import_id){
+                  if(empty($import_info['success_imported_product'])){
+                      $import_info['success_imported_product'] = 1;
+                      $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product_temp', $import_info['success_imported_product']);
+                  }else{
+                      $import_info['success_imported_product'] += 1;
+                      $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product_temp', $import_info['success_imported_product']);
+                  }
+                }
+                $this->_prepareCacheDir();
+                $this->_saveXmltoIcecatLiveCache($resultString, $entity_id, $locale);
+                $prod_title = (string)$xml_result->Product['Title'];
+
+                $this->_saveProductTitle($entity_id, $prod_title);
+                $icecatliveImportModel->_saveProductCatalogImage($entity_id, $xml_result->Product);
+                $icecatliveImportModel->loadGalleryPhotos($xml_result->Product->ProductGallery->ProductPicture);
+                $this->_saveImportMessage($entity_id, 'Success imported product from Icecat.');
+
+                if($import_id){
+                    return $_product = $catalog_product_model->load($entity_id);
+                }
+
+            }else{
+                $this->deleteIdProductTitles($entity_id);
+                if($import_id){
+                    return false;
+                }
+                // insert not import product id in table
+                if($this->_saveNotImportProductID($entity_id)){
+                      if($product_onlynewproducts){
+                          $import_info['current_product'] -= 1;
+                          $DB_loger->insetrtUpdateLogValue('icecatlive_current_product_temp', $import_info['current_product']);
+                          $import_info['count_products'] = $import_info['count_products'] - 1;
+                          $DB_loger->insetrtUpdateLogValue('icecatlive_count_products_temp', $import_info['count_products']);
+                      }
+                }
+                $import_info['error'] = $icecatliveImportModel->getErrorMessage();
+                $import_info['system_error'] = $icecatliveImportModel->getSystemError();
+                 $this->_saveImportMessage($entity_id, $import_info['error'].$import_info['system_error']);
+                if (preg_match('/^Warning: You are not allowed to have Full ICEcat access$/', $import_info['error'])) {
+                    if(empty($import_info['full_icecat_product'])){
+                        $import_info['full_icecat_product'] = 1;
+                        $DB_loger->insetrtUpdateLogValue('icecatlive_full_icecat_product_temp', $import_info['full_icecat_product']);
+                    }else{
+                        $import_info['full_icecat_product'] += 1;
+                        $DB_loger->insetrtUpdateLogValue('icecatlive_full_icecat_product_temp', $import_info['full_icecat_product']);
+                    }
+                }
+                if(empty($import_info['error_imported_product'])){
+                    $import_info['error_imported_product'] = 1;
+                    $DB_loger->insetrtUpdateLogValue('icecatlive_error_imported_product_temp', $import_info['error_imported_product']);
+                }else{
+                    $import_info['error_imported_product'] += 1;
+                    $DB_loger->insetrtUpdateLogValue('icecatlive_error_imported_product_temp', $import_info['error_imported_product']);
+                }
+            }
+        }else{
+            $import_info['current_product'] = 0;
+            $import_info['count_products'] = $this->getCountProducts($product_onlynewproducts);
+            if($import_info['count_products']){
+                $DB_loger->insetrtUpdateLogValue('icecatlive_current_product_temp',$import_info['current_product']);
+                $import_info['success_imported_product'] = 0;
+                $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product', $import_info['success_imported_product']);
+                $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product_temp', $import_info['success_imported_product']);
+                $DB_loger->insetrtUpdateLogValue('icecatlive_count_products_temp', $import_info['count_products']);
+                $import_info['error_imported_product'] = 0;
+                $DB_loger->insetrtUpdateLogValue('icecatlive_error_imported_product_temp', $import_info['error_imported_product']);
+            }
+        }
+
+        if($import_info['current_product'] == $import_info['count_products']){
+            $import_info['done'] = 1;
+            $DB_loger->insetrtUpdateLogValue('icecatlive_error_imported_product', $import_info['error_imported_product']);
+            $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product', $import_info['success_imported_product']);
+            $DB_loger->insetrtUpdateLogValue('icecatlive_full_icecat_product', $import_info['full_icecat_product']);
+            $DB_loger->deleteLogKey('icecatlive_full_icecat_product_temp');
+            $DB_loger->deleteLogKey('icecatlive_current_product_temp');
+            $DB_loger->deleteLogKey('icecatlive_error_imported_product_temp');
+            $DB_loger->deleteLogKey('icecatlive_success_imported_product_temp');
+            $DB_loger->deleteLogKey('icecatlive_count_products_temp');
+            if($_GET['update'] != 1 && !$import_id){
+                $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_imported_product', date('Y-m-d H:i:s'));
+            } elseif (!$import_id) {
+                $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_update_product', date('Y-m-d H:i:s'));
+            }
+            if($crone){
+                return $import_info;
+            }
+            echo json_encode($import_info);
+        }else{
+            $DB_loger->insetrtUpdateLogValue('icecatlive_error_imported_product', $import_info['error_imported_product']);
+            $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product', $import_info['success_imported_product']);
+            $DB_loger->insetrtUpdateLogValue('icecatlive_full_icecat_product', $import_info['full_icecat_product']);
+            $import_info['done'] = 0;
+            if($crone){
+                return $import_info;
+            }
+            echo json_encode($import_info);
+        }
+
+    }
+
+    public function _saveProductTitle($prod_id, $prod_title){
+        $connection = $this->getDbConnection();
+        $productsTitleTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/products_titles');
+        try{
+            $sql = " INSERT INTO  " . $productsTitleTable . " ( prod_id, prod_title)
+                    VALUES('" . $prod_id . "', '" . $prod_title . "')
+                    ON DUPLICATE KEY UPDATE
+                    prod_title = VALUES(prod_title)";
+
+            $connection->query($sql);
+        } catch (Exception $e) {
+            Mage::log("connector issue: {$e->getMessage()}");
+        }
+  }
 
     /**
-     * root method for uploading images to DB
+     * Return count product for imports
+     * @param integer $product_onlynewproducts
+     * @return integer
      */
-    public function load()
-    {
+    public function getCountProducts($product_onlynewproducts = 0) {
+        $db_res = Mage::getSingleton('core/resource')->getConnection('core_write');
+        $tablePrefix = '';
+        $tPrefix = (array) Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+          $tablePrefix = $tPrefix[0];
+        }
+        $productsTitleTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/products_titles');
+        $productsIdTable = Mage::getConfig()->getNode('default/icecatlive/noimportid_tables')->table_name;
+        $productsIdTable = $tablePrefix . $productsIdTable;
+        if (!$product_onlynewproducts) {
+          $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `" . $tablePrefix . $productsTitleTable ."` ON entity_id = prod_id WHERE prod_id IS NULL";
+        } else {
+          $query = "SELECT COUNT(*) FROM `" . $tablePrefix . "catalog_product_entity`  AS cpe
+                                          LEFT JOIN `" . $tablePrefix . $productsTitleTable . "`  AS iipt
+                                                  ON cpe.`entity_id`= iipt.`prod_id`
+                                          LEFT JOIN `" . $productsIdTable . "` AS iinpi
+                                                  ON iinpi.`prod_id` = cpe.`entity_id`
+                                    WHERE iipt.`prod_id`  IS NULL AND iinpi.`prod_id` IS NULL;";
+        }
+        $count_products = $db_res->fetchRow($query);
+        return $count_products['COUNT(*)'];
+    }
 
+    /**
+     * Insert to table noimport_product_id this prod_id
+     * @param integer $prod_id
+     */
+    public function _saveNotImportProductID($prod_id){
+        $connection = $this->getDbConnection();
 
-        $loadUrl = $this->getLoadURL();
-        ini_set('max_execution_time', 0);
-        try {
-            $this->indexProcess = new Mage_Index_Model_Process();
-            $this->indexProcess->setId($this->process_id);
+        $tablePrefix = '';
+        $tPrefix = (array)Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+            $tablePrefix = $tPrefix[0];
+        }
+        $productsIdTable = Mage::getConfig()->getNode('default/icecatlive/noimportid_tables')->table_name;
+        $productsIdTable = $tablePrefix . $productsIdTable;
 
-            if ($this->indexProcess->isLocked()) {
-                throw new Exception('Error! Another icecat module cron process is running!');
-            }
-
-            $this->indexProcess->lockAndBlock();
-
-            $this->_productFile = $this->_prepareFile(basename($loadUrl));
-            $this->_supplierFile = $this->_prepareFile(basename($this->_supplierMappingUrl));
-            $importlogFile =  Mage::getBaseDir('var') . $this->_connectorDir . 'import.log';
-            $importlogHandler = fopen($importlogFile, "w");
-
-            fwrite($importlogHandler, "Downloading product data file (export_urls_rich.txt.gz)\n");
-            $this->downloadFile($this->_productFile, $loadUrl);
-
-            fwrite($importlogHandler, "Downloading supplier mapping file (supplier_mapping.xml)\n");
-            $this->downloadFile($this->_supplierFile, $this->_supplierMappingUrl);
-            $this->XMLfile = Mage::getBaseDir('var') . $this->_connectorDir . basename($loadUrl, ".gz");
-
-            fwrite($importlogHandler, "Unzipping files\n");
-            $this->unzipFile();
-
-            fwrite($importlogHandler, "Importing supplier mapping (supplier_mapping.xml) to database\n");
-            $this->_loadSupplierListToDb();
-
-            fwrite($importlogHandler, "Importing products data (export_urls_rich.txt) to database\n");
-            $this->loadFileToDb();
-
-            //Start load product data file
-            $loadUrl = $this->productinfoUrL;
-            $this->_productFile = $this->_prepareFile(basename($loadUrl));
-
-            fwrite($importlogHandler, "Downloading additional product data file (prodid_d.txt.gz)\n");
-            $this->downloadFile($this->_productFile, $loadUrl);
-
-            fwrite($importlogHandler, "Unzipping additional product data file\n");
-            $this->unzipFile();
-
-            fwrite($importlogHandler, "Importing additional product data (prodid_d.txt.gz) to database\n");
-            $this->loadInfoFileToDb();
-            fwrite($importlogHandler, "Import process complete.\n");
-
-            $this->indexProcess->unlock();
-            fclose ($importlogHandler);
+        try{
+            $sql = " INSERT INTO `" . $productsIdTable . "` ( prod_id )
+                    VALUES(" . $prod_id . ")";
+            $connection->query($sql);
         } catch (Exception $e) {
-            echo $e->getMessage();
-            Mage::log($e->getMessage());
+            Mage::log("connector issue: {$e->getMessage()}");
+        }
+        return true;
+    }
+
+
+    public function _saveImportMessage($entity_id, $message){
+
+        $connection = $this->getDbConnection();
+        $tablePrefix = '';
+        $tPrefix = (array)Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+            $tablePrefix = $tPrefix[0];
+        }
+        $query = '';
+        try{
+            $sql = 'SELECT ea.`attribute_id`, eea.`entity_type_id`, eea.`attribute_set_id` FROM eav_attribute AS ea
+                        LEFT JOIN eav_entity_attribute AS eea
+                                ON eea.`attribute_id` = ea.`attribute_id`
+                    WHERE ea.`attribute_code`="icecatlive_import";';
+            $query = $connection->fetchRow($sql);
+            $attribute_id = $query['attribute_id'];
+            $entity_type_id = $query['entity_type_id'];
+            $attribute_set_id = $query['attribute_set_id'];
+
+            $sql = 'SELECT cpev.`store_id` FROM eav_attribute AS ea
+                            LEFT JOIN catalog_product_entity_varchar AS cpev
+                              ON ea.`attribute_id` = cpev.`attribute_id`
+                    WHERE cpev.`entity_id`=' . $entity_id . ' AND (ea.`attribute_code` = "sku_type" OR ea.`attribute_code` = "mpn"  OR  ea.`attribute_code` = "ean" )
+                    GROUP BY cpev.`entity_id`;';
+            $query = $connection->fetchRow($sql);
+            $store_id = $query['store_id'];
+
+            $sql = "DELETE FROM catalog_product_entity_varchar WHERE entity_id=".$entity_id.
+                    " AND attribute_id=".$attribute_id." AND store_id=".$store_id.";";
+            $connection->query($sql);
+
+            $sql = "INSERT INTO `catalog_product_entity_varchar` ( value_id, entity_type_id, attribute_id, store_id, entity_id, value)
+                    VALUES(NULL, " . $entity_type_id . ", " .$attribute_id. ", ".$store_id. ", " .$entity_id.", '".$message. "')";
+            $connection->query($sql);
+        } catch (Exception $e) {
+            Mage::log("connector issue: {$e->getMessage()}");
         }
     }
 
+
+    public function _saveXmltoIcecatLiveCache($resultString, $entity_id, $locale){
+        $current_prodCacheXml =  Mage::getBaseDir('var') . $this->_connectorCacheDir . 'iceshop_icecatlive_' . $entity_id . '_' . $locale;
+        $current_prodCacheHandler = fopen($current_prodCacheXml, "w");
+        fwrite($current_prodCacheHandler, $resultString);
+        fclose ($current_prodCacheHandler);
+    }
     /**
      * parse given XML to SIMPLE XML
      * @param string $stringXml
@@ -109,145 +422,6 @@ class Iceshop_Icecatlive_Model_Observer
     }
 
     /**
-     * Upload supplier mapping list to Database
-     */
-    protected function _loadSupplierListToDb()
-    {
-        $connection = $this->getDbConnection();
-        $mappingTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/supplier_mapping');
-        try {
-            $connection->beginTransaction();
-            $xmlString = file_get_contents($this->_supplierFile);
-            $xmlDoc = $this->_parseXml($xmlString);
-            if ($xmlDoc) {
-                $connection->query("DROP TABLE IF EXISTS `" . $mappingTable . "_temp`");
-                $connection->query("
-            CREATE TABLE `" . $mappingTable . "_temp` (
-              `supplier_id` int(11) NOT NULL,
-              `supplier_symbol` varchar(255) DEFAULT NULL,
-              KEY `supplier_id` (`supplier_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 
-            ");
-                $sql = '';
-                $counter = 1;
-                $max_counter = 1000;
-                $supplierList = $xmlDoc->SupplierMappings->SupplierMapping;
-                foreach ($supplierList as $supplier) {
-                    $supplierSymbolList = $supplier->Symbol;
-                    $supplierId = $supplier['supplier_id'];
-                    $supplierName = addslashes((string)$supplier['name']);
-                    if ($counter == 1) {
-                        $sql = " INSERT INTO  " . $mappingTable . "_temp ( supplier_id, supplier_symbol ) VALUES('" . $supplierId . "', '" . $supplierName . "') ";
-                    } else if ($counter % $max_counter == 0) {
-                        $connection->query($sql);
-                        $sql = " INSERT INTO  " . $mappingTable . "_temp ( supplier_id, supplier_symbol ) VALUES('" . $supplierId . "', '" . $supplierName . "')  ";
-                    } else {
-                        $sql .= " , ('" . $supplierId . "', '" . $supplierName . "') ";
-                    }
-                    foreach ($supplierSymbolList as $symbol) {
-                        $symbolName = addslashes((string)$symbol);
-                        if ($counter == 1) {
-                            $sql = " INSERT INTO  " . $mappingTable . "_temp ( supplier_id, supplier_symbol ) VALUES('" . $supplierId . "', '" . $symbolName . "') ";
-                        } else if ($counter % $max_counter == 0) {
-                            $connection->query($sql);
-                            $sql = " INSERT INTO  " . $mappingTable . "_temp ( supplier_id, supplier_symbol ) VALUES('" . $supplierId . "', '" . $symbolName . "')  ";
-                        } else {
-                            $sql .= " , ('" . $supplierId . "', '" . $symbolName . "') ";
-                        }
-                        $counter++;
-                    }
-                    $counter++;
-                }
-                $connection->query($sql);
-                $connection->query("DROP TABLE IF EXISTS `" . $mappingTable . "_old`");
-                $connection->query("rename table `" . $mappingTable . "` to `" . $mappingTable . "_old`, `" . $mappingTable . "_temp` to " . $mappingTable);
-                $connection->query("DROP TABLE IF EXISTS `" . $mappingTable . "_old`");
-                $connection->commit();
-            } else {
-                throw new Exception('Unable to process supplier file');
-            }
-        } catch (Exception $e) {
-            $connection->rollBack();
-            throw new Exception("Icecat Import Terminated: {$e->getMessage()}");
-        }
-    }
-
-    /**
-     * retrieve URL of data file that corresponds ICEcat account
-     */
-    private function getLoadURL()
-    {
-        $subscripionLevel = Mage::getStoreConfig('icecat_root/icecat/icecat_type');
-
-        if ($subscripionLevel === 'full') {
-            return $this->fullExportURLs;
-        } else {
-            return $this->freeExportURLs;
-        }
-    }
-
-    /**
-     * return error messages
-     */
-    public function getErrorMessage()
-    {
-        return $this->errorMessage;
-    }
-
-    /**
-     * getImage URL from DB
-     * @param string $productSku
-     * @param string $productManufacturer
-     */
-    public function getImageURL($productSku, $productManufacturer, $productId = '')
-    {
-
-        $connection = $this->getDbConnection();
-        try {
-
-            $dataTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/data');
-            $data_productsTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/data_products');
-            $mappingTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/supplier_mapping');
-            $model = Mage::getModel('catalog/product');
-            $_product = $model->load($productId);
-            $ean_code = $_product->getData(Mage::getStoreConfig('icecat_root/icecat/ean_code'));
-            $imageURL = '';
-
-            if (isset($productManufacturer) && !empty($productManufacturer)) {
-                $selectCondition = $connection->select()
-                    ->from(array('connector' => $dataTable), new Zend_Db_Expr('connector.prod_img'))
-                    ->joinInner(array('supplier' => $mappingTable), "connector.supplier_id = supplier.supplier_id AND supplier.supplier_symbol = {$this->connection->quote($productManufacturer)}")
-                    ->where('connector.prod_id = ?', $productSku);
-                $imageURL = $connection->fetchOne($selectCondition);
-            }
-            if (empty($imageURL) && !empty($ean_code)) {
-                $selectCondition = $connection->select()
-                    ->from(array('connector' => $dataTable), new Zend_Db_Expr('connector.prod_img'))
-                    ->joinLeft(array('products' => $data_productsTable), "connector.prod_id = products.prod_id")
-                    ->where('products.prod_ean = ?', trim($ean_code));
-                $imageURL = $connection->fetchOne($selectCondition);
-            }
-
-            if (!empty($imageURL)) {
-                $iceCatModel = Mage::getSingleton('icecatlive/import');
-
-                if (isset($productId) && !empty($productId)) {
-                    $imageURL = $iceCatModel->saveImg($productId, $imageURL, 'image');
-                }
-            }
-
-            if (empty($imageURL)) {
-                $this->errorMessage = "Given product id is not present in database";
-                return $imageURL;
-            }
-            return $imageURL;
-        } catch (Exception $e) {
-            $this->errorMessage = "DB ERROR: {$e->getMessage()}";
-            return false;
-        }
-    }
-
-    /**
      * Singletong for DB connection
      */
     private function getDbConnection()
@@ -261,218 +435,6 @@ class Iceshop_Icecatlive_Model_Observer
     }
 
     /**
-     * Upload Data file to DP
-     */
-    private function loadFileToDb()
-    {
-        $connection = $this->getDbConnection();
-        $dataTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/data');
-
-        $max_counter = 1000;
-        try {
-            $connection->beginTransaction();
-            $fileHandler = fopen($this->XMLfile, "r");
-            if ($fileHandler) {
-                $connection->query("DROP TABLE IF EXISTS `" . $dataTable . "_temp`");
-                $connection->query("
-                    CREATE TABLE `" . $dataTable . "_temp` (
-                   `prod_id` varchar(255) NOT NULL,
-                   `supplier_id` int(11) DEFAULT NULL,
-                   `prod_name` varchar(255) DEFAULT NULL,
-                   `prod_img` varchar(255) DEFAULT NULL,
-                   KEY `PRODUCT_MPN` (`prod_id`),
-                   KEY `supplier_id` (`supplier_id`)
-                   ) ENGINE=InnoDB DEFAULT CHARSET=utf8
-                ");
-
-                $counter = 0;
-                $sql = "";
-                while (!feof($fileHandler)) {
-                    $row = fgets($fileHandler);
-                    $oneLine = explode("\t", $row);
-
-                    if ($oneLine[0] != 'product_id' && $oneLine[0] != '') {
-
-                        try {
-
-                            $prod_id = (!empty($oneLine[1])) ? addslashes($oneLine[1]) : '';
-                            if(!empty($oneLine[5])){
-                                $prod_img = addslashes($oneLine[5]);
-                            }elseif(!empty($oneLine[6])){
-                                $prod_img = addslashes($oneLine[6]);
-                            }elseif(!empty($oneLine[7])){
-                                $prod_img = addslashes($oneLine[7]);
-                            }else{
-                                $prod_img = '';
-                            }
-                            $prod_name = (!empty($oneLine[12])) ? addslashes($oneLine[12]) : '';
-                            $supplier_id = (!empty($oneLine[4])) ? addslashes($oneLine[4]) : '';
-
-                            if ($counter == 1) {
-                                $sql = " INSERT INTO  " . $dataTable . "_temp ( prod_id, supplier_id, prod_name, prod_img ) VALUES('" . $prod_id . "', '" . $supplier_id . "', '" . $prod_name . "', '" . $prod_img . "') ";
-                            } else if ($counter % $max_counter == 0) {
-                                $connection->query($sql);
-                                $sql = " INSERT INTO  " . $dataTable . "_temp ( prod_id, supplier_id, prod_name, prod_img ) VALUES('" . $prod_id . "', '" . $supplier_id . "', '" . $prod_name . "', '" . $prod_img . "') ";
-                            } else {
-                                $sql .= " , ('" . $prod_id . "', '" . $supplier_id . "', '" . $prod_name . "', '" . $prod_img . "') ";
-                            }
-
-                        } catch (Exception $e) {
-                            Mage::log("connector issue: {$e->getMessage()}");
-                        }
-                    }
-                    $counter++;
-                }
-                $connection->query($sql);
-                $connection->query("DROP TABLE IF EXISTS `" . $dataTable . "_old`");
-                $connection->query("RENAME TABLE `" . $dataTable . "` TO `" . $dataTable . "_old`, `" . $dataTable . "_temp` TO " . $dataTable);
-                $connection->query("DROP TABLE IF EXISTS `" . $dataTable . "_old`");
-                $connection->commit();
-                fclose($fileHandler);
-            }
-        } catch (Exception $e) {
-            $connection->rollBack();
-            throw new Exception("Icecat Import Terminated: {$e->getMessage()}");
-        }
-    }
-
-    /**
-     * Upload Data file to DP
-     */
-    private function loadInfoFileToDb()
-    {
-        $connection = $this->getDbConnection();
-        $data_productsTable = Mage::getSingleton('core/resource')->getTableName('icecatlive/data_products');
-        $max_counter = 1000;
-        try {
-            $connection->beginTransaction();
-            $fileHandler = fopen($this->XMLfile, "r");
-            if ($fileHandler) {
-
-                $connection->query("DROP TABLE IF EXISTS `" . $data_productsTable . "`");
-                $connection->query("
-                    CREATE TABLE `" . $data_productsTable . "` (
-                    `prod_id` varchar(255) NOT NULL,
-                    `supplier_symbol` varchar(255) DEFAULT NULL,
-                    `prod_title`  varchar(255) DEFAULT NULL,
-                    `prod_ean` varchar(255) NOT NULL,
-                    KEY `prod_id`     (`prod_id`),
-                    KEY `PRODUCT_EAN` (`prod_ean`),
-                    INDEX `mpn_brand` (`prod_id`, `supplier_symbol`)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8
-                ");
-
-                $counter = 1;
-                $sql = "";
-                while (!feof($fileHandler)) {
-                    $row = fgets($fileHandler);
-                    $oneLine = explode("\t", $row);
-
-                    if ($oneLine[0] != 'Part number') {
-                        try {
-                            $oneLine3 = trim($oneLine[3]);
-                            $oneLine15 = trim($oneLine[15]);
-                            $oneLine24 = trim($oneLine[24]);
-                            if (!empty($oneLine15)) {
-                                $eans = explode(';', $oneLine15);
-                            }
-                            $prod_id = (!empty($oneLine[0])) ? addslashes(str_replace("\t", '', $oneLine[0])) : '';
-                            $brand = (!empty($oneLine3)) ? addslashes(str_replace("\t", '', $oneLine3)) : '';
-                            $title = (!empty($oneLine24)) ? addslashes(str_replace("\t", '', $oneLine24)) : '';
-                            if (is_array($eans) && !empty($eans)){
-                                foreach($eans as $prod_ean){
-                                    if ($counter == 1) {
-                                        $sql .= " INSERT INTO  " . $data_productsTable . " ( prod_id, supplier_symbol, prod_title, prod_ean ) VALUES('" . $prod_id . "', '" . $brand . "', '" . $title. "', '" . $prod_ean . "') ";
-                                    } else if ($counter % $max_counter == 0) {
-                                        $connection->query($sql);
-                                        $sql = " INSERT INTO  " . $data_productsTable . " ( prod_id, supplier_symbol, prod_title, prod_ean ) VALUES('" . $prod_id . "', '" . $brand . "', '" . $title . "', '" . $prod_ean . "') ";
-                                    } else {
-                                        $sql .= " , ('" . $prod_id . "', '" . $brand . "', '" . $title . "', '" . $prod_ean . "') ";
-                                    }
-                                    $counter++;
-                                }
-                            }else{
-                                $prod_ean = !empty($eans) ? $eans : '';
-                                if ($counter == 1) {
-                                    $sql .= " INSERT INTO  " . $data_productsTable . " ( prod_id, supplier_symbol, prod_title, prod_ean ) VALUES('" . $prod_id . "', '" . $brand . "', '" . $title. "', '" . $prod_ean . "') ";
-                                } else if ($counter % $max_counter == 0) {
-                                    $connection->query($sql);
-                                    $sql = " INSERT INTO  " . $data_productsTable . " ( prod_id, supplier_symbol, prod_title, prod_ean ) VALUES('" . $prod_id . "', '" . $brand . "', '" . $title . "', '" . $prod_ean . "') ";
-                                } else {
-                                    $sql .= " , ('" . $prod_id . "', '" . $brand . "', '" . $title . "', '" . $prod_ean . "') ";
-                                }
-                                $counter++;
-                            }
-                        } catch (Exception $e) {
-                            Mage::log("connector issue: {$e->getMessage()}");
-                        }
-                    }
-                }
-                $connection->query($sql);
-                $connection->commit();
-                fclose($fileHandler);
-            }
-        } catch (Exception $e) {
-            $connection->rollBack();
-            throw new Exception("Icecat Import Terminated: {$e->getMessage()}");
-        }
-    }
-
-    /**
-     * unzip Uploaded file
-     */
-    private function unzipFile()
-    {
-        $gz = gzopen($this->_productFile, 'rb');
-        if (file_exists($this->XMLfile)) {
-            unlink($this->XMLfile);
-        }
-        $fileToWrite = @fopen($this->XMLfile, 'w+');
-        if (!$fileToWrite) {
-            $this->errorMessage = 'Unable to open output txt file. Please remove all *.txt files from ' .
-                Mage::getBaseDir('var') . $this->_connectorDir . 'folder';
-            return false;
-        }
-        while (!gzeof($gz)) {
-            $buffer = gzgets($gz, 100000);
-            fputs($fileToWrite, $buffer);
-        }
-        gzclose($gz);
-        fclose($fileToWrite);
-    }
-
-    /**
-     * Process downloading files
-     * @param string $destinationFile
-     * @param string $loadUrl
-     */
-    private function downloadFile($destinationFile, $loadUrl)
-    {
-        $userName = Mage::getStoreConfig('icecat_root/icecat/login');
-        $userPass = Mage::getStoreConfig('icecat_root/icecat/password');
-        $fileToWrite = @fopen($destinationFile, 'w+');
-
-        try {
-            $webClient = new Zend_Http_Client();
-            $webClient->setUri($loadUrl);
-            $webClient->setConfig(array('maxredirects' => 0, 'timeout' => 60));
-            $webClient->setMethod(Zend_Http_Client::GET);
-            $webClient->setHeaders('Content-Type: text/xml; charset=UTF-8');
-            $webClient->setAuth($userName, $userPass, Zend_Http_CLient::AUTH_BASIC);
-            $response = $webClient->request('GET');
-            if ($response->isError()) {
-                throw new Exception("\nERROR Occured.\nResponse Status: " . $response->getStatus() . "\nResponse Message: " . $response->getMessage() ."\nResponse Body: " . $response->getBody() .
-                "\nPlease, make sure that you added correct icecat username and password to Icecat Live! configuration and you have your webshop's correct IP in Allowed IP addresses field in your icecat account.");
-            }
-        } catch (Exception $e) {
-            throw new Exception("Warning: cannot connect to ICEcat. {$e->getMessage()}");
-        }
-        $resultString = $response->getBody();
-        fwrite($fileToWrite, $resultString);
-        fclose($fileToWrite);
-    }
-
-    /**
      * Prepares file and folder for futur download
      * @param string $fileName
      */
@@ -483,11 +445,133 @@ class Iceshop_Icecatlive_Model_Observer
         if (!is_dir($varDir)) {
             mkdir($varDir, 0777, true);
         }
-        if (file_exists($filePath)) {
-            unlink($filePath);
-        }
         return $filePath;
     }
+    protected function _prepareCacheDir()
+    {
+        $varDir = Mage::getBaseDir('var') . $this->_connectorCacheDir;
+        if (!is_dir($varDir)) {
+            mkdir($varDir, 0777, true);
+        }
+    }
+
+    /**
+     * Method run import data in crontab jobs
+     * @param int $update param set update or import data
+     * @param bool $full_import_stat flag for set full_import
+     */
+    public function load($update = 0, $full_import_stat = false, $error_import = 0, $crone_start=1)
+    {
+        if($crone_start){
+                $date_crone_start = date('Y-m-d H:i:s');
+                $this->setCroneStatus('running',$date_crone_start,'icecatlive_load_data');
+        }
+        $DB_loger = Mage::helper('icecatlive/db');
+        try{
+            $DB_loger = Mage::helper('icecatlive/db');
+            if(!$full_import_stat){
+                $_GET['full_import'] = 1;
+            } else {
+                $_GET['full_import'] = '';
+            }
+            $_GET['error_import'] = $error_import;
+            $_GET['update'] = 0;
+            $result = $this->loadProductInfoIntoCache(0,1);
+            if($result['done'] != 1){
+                $this->load(0, true, 0, 0);
+            }
+            $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_imported_product', date('Y-m-d H:i:s'));
+        } catch (Exception $e) {
+            $DB_loger->insetrtUpdateLogValue('import_icecat_server_error_message', $e->getMessage());
+            $this->load(0, true, 1, 0);
+        }
+    }
+
+    /**
+     * Method run updata in crontab jobs
+     */
+    public function loadUpdate($error_import = 0, $crone_start=1)
+    {
+            if($crone_start){
+                $date_crone_start = date('Y-m-d H:i:s');
+                $this->setCroneStatus('running',$date_crone_start,'icecatlive_load_updata');
+            }
+            $DB_loger = Mage::helper('icecatlive/db');
+        try{
+            $_GET['update'] = 1;
+            $_GET['error_import'] = $error_import;
+            $result = $this->loadProductInfoIntoCache(0,1);
+            if($result['done'] != 1){
+              $this->loadUpdate(0,0);
+            }
+            $DB_loger->deleteLogKey('import_icecat_server_error_message_update');
+            $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_update_product', date('Y-m-d H:i:s'));
+        } catch (Exception $e) {
+            $DB_loger->insetrtUpdateLogValue('import_icecat_server_error_message_update', $e->getMessage());
+            $this->loadUpdate(1,0);
+        }
+    }
+
+    /**
+     * Delete row from products_titles tables
+     * if Icecat return error to this product
+     * @param integer $entity_id
+     */
+    public function deleteIdProductTitles($entity_id){
+        $connection = $this->getDbConnection();
+        $tablePrefix = '';
+        $tPrefix = (array)Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+            $tablePrefix = $tPrefix[0];
+        }
+        $query = '';
+        try{
+            $sql = "DELETE FROM `".$tablePrefix."iceshop_icecatlive_products_titles` WHERE prod_id=".$entity_id.";";
+            $connection->query($sql);
+            $this->deleteCacheFile($entity_id);
+        } catch (Exception $e) {
+            Mage::log("connector issue: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Delete product import file from cache folder
+     * @param integer $entity_id
+     */
+    public function deleteCacheFile($entity_id){
+        $import = new Iceshop_Icecatlive_Model_Observer();
+        $locale = Mage::getStoreConfig('icecat_root/icecat/language');
+        if ($locale == '0') {
+            $systemLocale = explode("_", Mage::app()->getLocale()->getLocaleCode());
+            $locale = $systemLocale[0];
+        }
+        $cache_file =Mage::getBaseDir('var') . $import->_connectorCacheDir . 'iceshop_icecatlive_'.$entity_id .'_' . $locale;
+        if(file_exists($cache_file)){
+            unlink($cache_file);
+        }
+    }
+
+
+    /**
+     * Change crone status in table `cron_schedule`
+     * @param string $status
+     * @param string $date_crone_start
+     * @param string $job_code
+     */
+    public function setCroneStatus($status = 'pending',$date_crone_start, $job_code){
+      try{
+          $db_res = Mage::getSingleton('core/resource')->getConnection('core_write');
+          $tablePrefix = '';
+          $tPrefix = (array)Mage::getConfig()->getTablePrefix();
+          if (!empty($tPrefix)) {
+              $tablePrefix = $tPrefix[0];
+          }
+          $db_res->query("UPDATE `{$tablePrefix}cron_schedule` SET status='$status' WHERE job_code = '$job_code' AND executed_at='$date_crone_start'");
+      } catch (Exception $e){
+
+      }
+    }
+
 }
 
 ?>

@@ -8,7 +8,6 @@ class Iceshop_Icecatlive_Model_Catalog_Product extends Mage_Catalog_Model_Produc
 
     public function getName()
     {
-
         $productNamePriority = Mage::getStoreConfig('icecat_root/icecat/name_priority');
         if ($productNamePriority == 'Db') {
             return parent::getName();
@@ -17,6 +16,7 @@ class Iceshop_Icecatlive_Model_Catalog_Product extends Mage_Catalog_Model_Produc
         try {
             self::$_product_source = '';
             $connection = Mage::getSingleton('core/resource')->getConnection('core_read');
+            $entity_id = $this->getId();
             $manufacturerId = $this->getData(Mage::getStoreConfig('icecat_root/icecat/manufacturer'));
             $mpn = $this->getData(Mage::getStoreConfig('icecat_root/icecat/sku_field'));
             $ean_code = $this->getData(Mage::getStoreConfig('icecat_root/icecat/ean_code'));
@@ -35,24 +35,16 @@ class Iceshop_Icecatlive_Model_Catalog_Product extends Mage_Catalog_Model_Produc
                     $manufacturer = $manufacturerId;
                     break;
             }
-            if(!empty($mpn) && !empty($manufacturer)){
-                $tableName = Mage::getSingleton('core/resource')->getTableName('icecatlive/data_products');
+            if(!empty($entity_id)){
+                $tableName = Mage::getSingleton('core/resource')->getTableName('icecatlive/products_titles');
                 $selectCondition = $connection->select()
                     ->from(array('connector' => $tableName), new Zend_Db_Expr('connector.prod_title'))
-                    ->where('connector.prod_id = ? ', $mpn)->where('connector.supplier_symbol = ? ', $manufacturer);
-                $icecatName = $connection->fetchOne($selectCondition);
-            }
-            if(empty($icecatName) && !empty($ean_code)){
-                $tableName = Mage::getSingleton('core/resource')->getTableName('icecatlive/data_products');
-                $selectCondition = $connection->select()
-                    ->from(array('connector' => $tableName), new Zend_Db_Expr('connector.prod_title'))
-                    ->where('connector.prod_ean = ? ', $ean_code);
+                    ->where('connector.prod_id = ? ', $entity_id);
                 $icecatName = $connection->fetchOne($selectCondition);
             }
         } catch (Exception $e) {
             Mage::log('Icecat getName error' . $e);
         }
-
         $product_name = !empty($icecatName) ? $icecatName : parent::getName();
 
         return $product_name;

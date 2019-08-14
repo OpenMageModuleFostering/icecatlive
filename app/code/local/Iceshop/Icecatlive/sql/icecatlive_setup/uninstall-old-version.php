@@ -11,7 +11,9 @@ class Uninstall_Bintime_Icecatlive
         $template_dir = Mage::getBaseDir('app') . '/design/frontend/base/default/template/icecatlive';
         $etc_bintime_xml = Mage::getBaseDir('app') . '/etc/modules/Bintime_Icecatimport.xml';
         $package_bintime_xml = Mage::getBaseDir('var') . '/package/IcecatLive-1.5.0.xml';
+        $cache_iceshop_dir = Mage::getBaseDir('var') . '/iceshop';
 
+        $this->remove_dir($cache_iceshop_dir);
         $this->remove_dir($code_dir);
         $this->remove_dir($template_dir);
         $this->remove_file($design_layout);

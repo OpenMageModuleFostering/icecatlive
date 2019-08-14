@@ -1,16 +1,15 @@
 <?php
 class Iceshop_Icecatlive_CatalogSearch_Block_Result extends Mage_CatalogSearch_Block_Result
 {
-
-    /**
+     /**
      * Retrieve search result count
      *
      * @return string
      */
     public function getResultCount()
     {
-        $ProductPriority = Mage::getStoreConfig('icecat_root/icecat/product_priority');
 
+        $ProductPriority = Mage::getStoreConfig('icecat_root/icecat/product_priority');
         if ($ProductPriority == 'Show') {
             return parent::getResultCount();
         }

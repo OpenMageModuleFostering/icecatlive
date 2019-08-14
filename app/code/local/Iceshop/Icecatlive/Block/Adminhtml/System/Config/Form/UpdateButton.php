@@ -1,5 +1,5 @@
 <?php
-class Iceshop_Icecatlive_Block_Adminhtml_System_Config_Form_Button extends Mage_Adminhtml_Block_System_Config_Form_Field
+class Iceshop_Icecatlive_Block_Adminhtml_System_Config_Form_UpdateButton extends Mage_Adminhtml_Block_System_Config_Form_Field
 {
     /*
      * Set templated
@@ -45,8 +45,8 @@ class Iceshop_Icecatlive_Block_Adminhtml_System_Config_Form_Button extends Mage_
             $prod_button = $this->getLayout()->createBlock('adminhtml/widget_button')
                 ->setData(array(
                     'id' => 'icecatlive_button',
-                    'label' => $this->helper('adminhtml')->__('Import product information'),
-                    'onclick' => 'javascript:import_prod_info(0, 1); return false;'
+                    'label' => $this->helper('adminhtml')->__('Update new products'),
+                    'onclick' => 'javascript:import_prod_info(1); return false;'
                 ));
             $buttons = $prod_button->toHtml();
             return $buttons;
