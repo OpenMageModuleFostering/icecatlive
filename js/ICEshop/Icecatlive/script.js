@@ -2,7 +2,7 @@
 jQuery.noConflict();
 
 //script which starts after page is loaded
-jQuery(document).ready(function (jQuery) {
+jQuery(document).ready(function () {
 
     jQuery('div#content').on('click', 'a.section-toggler-icecatlive', function(e){
         toggleIcecatliveFieldset(this);
@@ -29,16 +29,6 @@ jQuery(document).ready(function (jQuery) {
         }).buildForm();
     }
 
-    var request_url_explanations = jQuery('#icecat_root_icecat_icecatlive_explanation_hidden');
-    if(request_url_explanations.length>0){
-        var url_explanations = Base64.decode(request_url_explanations.find('option')[0].innerHTML);
-        var iceimport_explanation_length = jQuery(('#icecatlive_explanation')).length;
-        if(iceimport_explanation_length>0){
-            jQuery(('#icecatlive_explanation')).attr('href',url_explanations)
-        }
-        jQuery('#icecat_root_icecat_icecatlive_explanation_hidden').parents('tr').remove();
-    }
-
     refreshIcecatliveSystemCheck();
 
     buildIceshopInfo();
@@ -59,7 +49,7 @@ function buildIceshopInfo()
             .text('Your browser doesn\'t work with iframe elements');
         iceshop_info_iframe_el.appendTo(wrapper);
         jQuery('div.entry-edit').closest('div.main-col-inner').find('div.content-header').find('table td.form-buttons').hide();
-        jQuery('div.content-header-floating').find('table td.form-buttons').html('');
+        jQuery('div.content-header-floating').find('table td.form-buttons').html(hide);
     }
 }
 

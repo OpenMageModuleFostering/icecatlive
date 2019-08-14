@@ -3,7 +3,7 @@
     <modules>
         <Iceshop_Icecatlive>
             <active>true</active>
-            <codePool>community</codePool>
+            <codePool>local</codePool>
             <depends>
                 <Mage_Catalog />
             </depends>
