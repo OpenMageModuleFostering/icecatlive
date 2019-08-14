@@ -1,0 +1,10 @@
+icecatlive_process_hash_time: 1459327602.2986
+icecatlive_startdate_imported_product: 2016-03-30 08:46:42
+icecatlive_current_product_temp: 1
+icecatlive_count_products_temp: 8
+icecatlive_error_imported_product_temp: 1
+icecatlive_error_imported_product: 1
+icecatlive_success_imported_product: 
+icecatlive_full_icecat_product: 
+icecatlive_lastinsert_product_id: 316
+icecatlive_enddate_imported_product: 2016-03-30 08:46:46

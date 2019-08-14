@@ -16,6 +16,9 @@ class Iceshop_Icecatlive_Model_Observer
     public $_connectorCacheDir = '/iceshop/icecatlive/cache/';
     protected $_productFile;
     protected $_supplierFile;
+    protected $_heap = array();
+    protected $_current_id = null;
+    protected $_cron_full_icecat_counter = 0;
 
     protected function _construct()
     {
@@ -23,7 +26,6 @@ class Iceshop_Icecatlive_Model_Observer
     }
 
     public function loadProductInfoIntoCache($import_id = 0, $crone=0,$real_time=0){
-
       try{
         $start_import_time = microtime(true);
         $product_onlynewproducts = Mage::getStoreConfig('icecat_root/icecat/product_onlynewproducts');
@@ -45,7 +47,7 @@ class Iceshop_Icecatlive_Model_Observer
           $DB_loger->insetrtUpdateLogValue('icecatlive_process_hash_time', $import_info['process_hash_time']);
         }
 
-        if(!$real_time){
+        if(!$real_time && $crone == 0){
         $process_running = Mage::getConfig()->getNode('default/icecatlive/icecatlive_process_running')->icecatlive_error_text;
         if(empty($import_info['process_hash'])){
             $import_info['process_hash'] = md5($import_info['process_hash_time']);
@@ -298,7 +300,10 @@ class Iceshop_Icecatlive_Model_Observer
 
             }else{
                 $this->deleteIdProductTitles($entity_id);
-                if($import_id){
+                if ($import_id) {
+                    if (preg_match('/^Warning: You are not allowed to have Full ICEcat access$/', $icecatliveImportModel->getErrorMessage())) {
+                        $this->_cron_full_icecat_counter++;
+                    }
                     return false;
                 }
                 // insert not import product id in table
@@ -395,11 +400,15 @@ class Iceshop_Icecatlive_Model_Observer
             }
         }
 
-     } catch (Exception $e){
-       $DB_loger->deleteLogKey('icecatlive_process_hash');
-       $DB_loger->deleteLogKey('icecatlive_process_hash_time');
-       throw new Exception($e->getMessage());
-     }
+      } catch (Zend_Http_Client_Adapter_Exception $error) {
+          $DB_loger->deleteLogKey('icecatlive_process_hash');
+          $DB_loger->deleteLogKey('icecatlive_process_hash_time');
+          Mage::log("connector issue: {$error->getMessage()}");
+      } catch (Exception $e) {
+          $DB_loger->deleteLogKey('icecatlive_process_hash');
+          $DB_loger->deleteLogKey('icecatlive_process_hash_time');
+          throw new Exception($e->getMessage());
+      }
    }
 
     /**
@@ -612,55 +621,67 @@ class Iceshop_Icecatlive_Model_Observer
      * @param int $update param set update or import data
      * @param bool $full_import_stat flag for set full_import
      */
-    public function load($update = 0, $full_import_stat = false, $error_import = 0, $crone_start=1)
+    public function load($update = 0, $full_import_stat = false, $error_import = 0, $crone_start = 1)
     {
-        if($crone_start){
-                $date_crone_start = date('Y-m-d H:i:s');
-                $this->setCroneStatus('running',$date_crone_start,'icecatlive_load_data');
+        if ($crone_start) {
+            $date_crone_start = date('Y-m-d H:i:s');
+            $this->setCroneStatus('running', $date_crone_start, 'icecatlive_load_data');
         }
         $DB_loger = Mage::helper('icecatlive/db');
-        try{
+        $DB_loger->insetrtUpdateLogValue('icecatlive_startdate_imported_product', date('Y-m-d H:i:s'));
+        $DB_loger->deleteLogKey('icecatlive_error_imported_product');
+        $DB_loger->deleteLogKey('icecatlive_success_imported_product');
+        try {
             $DB_loger = Mage::helper('icecatlive/db');
-            if(!$full_import_stat){
+            if (!$full_import_stat) {
                 $_GET['full_import'] = 1;
             } else {
                 $_GET['full_import'] = '';
             }
             $_GET['error_import'] = $error_import;
             $_GET['update'] = 0;
-            $result = $this->loadProductInfoIntoCache(0,1);
-            if($result['done'] != 1){
-                $this->load(0, true, 0, 0);
+
+            $this->getEntityData();
+
+            if (!empty($this->_heap)) {
+                $this->runFetchData();
             }
             $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_imported_product', date('Y-m-d H:i:s'));
         } catch (Exception $e) {
             $DB_loger->insetrtUpdateLogValue('import_icecat_server_error_message', $e->getMessage());
-            $this->load(0, true, 1, 0);
+            if ($this->_current_id !== null) {
+                unset($this->_heap[$this->_current_id]);
+                $this->load(0, true, 1, 0);
+            }
         }
     }
 
     /**
      * Method run updata in crontab jobs
      */
-    public function loadUpdate($error_import = 0, $crone_start=1)
+    public function loadUpdate($error_import = 0, $crone_start = 1)
     {
-            if($crone_start){
-                $date_crone_start = date('Y-m-d H:i:s');
-                $this->setCroneStatus('running',$date_crone_start,'icecatlive_load_updata');
-            }
-            $DB_loger = Mage::helper('icecatlive/db');
-        try{
+        if ($crone_start) {
+            $date_crone_start = date('Y-m-d H:i:s');
+            $this->setCroneStatus('running', $date_crone_start, 'icecatlive_load_updata');
+        }
+        $DB_loger = Mage::helper('icecatlive/db');
+        $DB_loger->insetrtUpdateLogValue('icecatlive_startdate_update_product', date('Y-m-d H:i:s'));
+        $DB_loger->deleteLogKey('icecatlive_error_imported_product');
+        $DB_loger->deleteLogKey('icecatlive_success_imported_product');
+        try {
             $_GET['update'] = 1;
             $_GET['error_import'] = $error_import;
-            $result = $this->loadProductInfoIntoCache(0,1);
-            if($result['done'] != 1){
-              $this->loadUpdate(0,0);
+
+            $this->getEntityData();
+            if (!empty($this->_heap)) {
+                $this->runFetchData();
             }
             $DB_loger->deleteLogKey('import_icecat_server_error_message_update');
             $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_update_product', date('Y-m-d H:i:s'));
         } catch (Exception $e) {
             $DB_loger->insetrtUpdateLogValue('import_icecat_server_error_message_update', $e->getMessage());
-            $this->loadUpdate(1,0);
+            $this->loadUpdate(1, 0);
         }
     }
 
@@ -764,6 +785,85 @@ class Iceshop_Icecatlive_Model_Observer
 
         }
         return '';
+    }
+
+    /**
+     * Runs function of fetch data
+     * @throws Exception
+     */
+    public function runFetchData()
+    {
+        $DB_loger = Mage::helper('icecatlive/db');
+        $success = 0;
+        $failed = 0;
+        if (!empty($this->_heap)) {
+            foreach ($this->_heap as $ids) {
+                $this->_current_id = $ids;
+                try {
+                    $result = $this->loadProductInfoIntoCache($ids, 1);
+                    if ($result == false) {
+                        $failed++;
+                        $DB_loger->insetrtUpdateLogValue('icecatlive_error_imported_product', $failed);
+                    } else {
+                        $success++;
+                        $DB_loger->insetrtUpdateLogValue('icecatlive_success_imported_product', $success);
+                    }
+                    $DB_loger->insetrtUpdateLogValue('icecatlive_full_icecat_product', $this->_cron_full_icecat_counter);
+                    unset($this->_heap[$ids]);
+                } catch (Exception $e) {
+                    $failed++;
+                    $DB_loger->insetrtUpdateLogValue('icecatlive_error_imported_product', $failed);
+                    unset($this->_heap[$ids]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Fill $this->_heap property with products id`s to last it processed
+     */
+    public function getEntityData()
+    {
+        $db_res = Mage::getSingleton('core/resource')->getConnection('core_write');
+        $product_onlynewproducts = Mage::getStoreConfig('icecat_root/icecat/product_onlynewproducts');
+        $tablePrefix = '';
+        $tPrefix = (array)Mage::getConfig()->getTablePrefix();
+        if (!empty($tPrefix)) {
+            $tablePrefix = $tPrefix[0];
+        }
+        $heap = array();
+        if (empty($this->_heap)) {
+            if ($_GET['update'] != 1) {
+                if (!$product_onlynewproducts) {
+                    $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity`";
+                } else {
+                    $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` AS cpe
+                                    LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_noimport_products_id` AS iinpi
+                                                  ON cpe.`entity_id` = iinpi.`prod_id`
+                            WHERE iinpi.`prod_id` IS NULL";
+                }
+                $heap = $db_res->fetchAll($query);
+            } else {
+                if (!$product_onlynewproducts) {
+                    $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles` ON entity_id = prod_id WHERE prod_id IS NULL";
+                } else {
+                    $query = "SELECT `entity_id` FROM `" . $tablePrefix . "catalog_product_entity` AS cpe
+                                          LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_products_titles` AS iipt
+                                                 ON cpe.`entity_id` = iipt.`prod_id`
+                                          LEFT JOIN `" . $tablePrefix . "iceshop_icecatlive_noimport_products_id` AS iinpi
+                                                 ON iinpi.`prod_id` = cpe.`entity_id`
+                                  WHERE iipt.`prod_id` IS NULL AND iinpi.`prod_id` IS NULL1";
+                }
+                $heap = $db_res->fetchAll($query);
+            }
+            if (!empty($heap)) {
+                foreach ($heap as $key => $value) {
+                    if (isset($value['entity_id'])) {
+                        $this->_heap[$value['entity_id']] = $value['entity_id'];
+                    }
+                }
+            }
+        }
     }
 
 }

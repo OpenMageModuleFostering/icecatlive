@@ -195,7 +195,7 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
                 'label' => 'Memory Limit',
                 'recommended_value' => '>= 128M',
                 'current_value' => $php['memory_limit'],
-                'result' => ($memoryLimit >= 128),
+                'result' => ($this->checkMemoryLimit($php['memory_limit'], (int)128)),
                 'advice' => array(
                     'label' => $this->__('Maximum amount of memory in bytes that a script is allowed to allocate.'),
                     'link' => 'http://ua2.php.net/manual/en/ini.core.php#ini.memory-limit'
@@ -743,5 +743,27 @@ class Iceshop_Icecatlive_Helper_System_Systemcheck extends Mage_Core_Helper_Abst
       } else {
         return false;
       }
+    }
+
+    /**
+     * Calculate and compare needed value of memory limit
+     * @param string $memoryLimit
+     * @param integer $compare
+     * @return boolean
+     */
+    protected function checkMemoryLimit($memoryLimit, $compare){
+        $ml = false;
+        if(strripos($memoryLimit, 'G')){
+            $ml = ((int)$memoryLimit)*1024;
+        } else {
+            $ml = (int)$memoryLimit;
+        }
+        if($ml){
+            if($ml>=$compare)
+                return true;
+            else
+                return false;
+        }
+        return false;
     }
 }

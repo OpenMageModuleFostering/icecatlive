@@ -25,6 +25,15 @@
                     <show_in_website>1</show_in_website>
                     <show_in_store>1</show_in_store>
                     <fields>
+                        <explanation translate="label">
+                            <label><![CDATA[<a id="icecatlive_explanation" target="_blank">Explanation</a>]]></label>
+                            <comment><![CDATA[]]></comment>
+                            <frontend_type>label</frontend_type>
+                            <sort_order>9</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_website>1</show_in_website>
+                            <show_in_store>1</show_in_store>
+                        </explanation>
                         <login translate="label">
                             <label>Icecat User name</label>
                             <frontend_type>text</frontend_type>
@@ -69,7 +78,7 @@
                             <show_in_store>1</show_in_store>
                         </sku_field>
                         <manufacturer translate="label">
-                            <label>Manufacturer Name</label>
+                            <label>Brand</label>
                             <frontend_type>select</frontend_type>
                             <source_model>icecatlive/system_config_attributes</source_model>
                             <sort_order>50</sort_order>
@@ -78,7 +87,7 @@
                             <show_in_store>1</show_in_store>
                         </manufacturer>
                         <ean_code translate="label">
-                            <label>Ean Code</label>
+                            <label>GTIN</label>
                             <frontend_type>select</frontend_type>
                             <source_model>icecatlive/system_config_attributes</source_model>
                             <sort_order>60</sort_order>
@@ -176,6 +185,16 @@
                             <show_in_website>1</show_in_website>
                             <show_in_store>1</show_in_store>
                         </update_data>
+                        <icecatlive_explanation_hidden translate="label comment">
+                            <label></label>
+                            <comment></comment>
+                            <frontend_type>select</frontend_type>
+                            <source_model>icecatlive/system_config_explanations</source_model>
+                            <sort_order>90</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_website>1</show_in_website>
+                            <show_in_store>1</show_in_store>
+                        </icecatlive_explanation_hidden>
                     </fields>
                 </icecat>
             </groups>

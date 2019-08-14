@@ -27,6 +27,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         //Problems Digest
         $problems_digest = $checker->getExtensionProblemsDigest();
         $problems = $problems_digest->getProblems();
+        if ($problems_digest->getCount() > 0) :
         ?>
         <div class="entry-edit" id="icecatlive-digest">
             <div class="entry-edit-head collapseable">
@@ -142,7 +143,7 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
             </div>
         </div>
         <?php
-
+        endif;
         //Check module
         $DB_loger = Mage::helper('icecatlive/db');
         $import_info['startdate_imported_product'] = $DB_loger->getLogValue('icecatlive_startdate_imported_product');
@@ -1036,5 +1037,152 @@ class Iceshop_Icecatlive_IcecatliveController extends Mage_Adminhtml_Controller_
         }
 
         $this->_redirectUrl(Mage::helper("adminhtml")->getUrl("*/system_config/edit", array('section' => 'icecatlive_information')));
+    }
+
+    protected function _isAllowed()
+    {
+        return Mage::getSingleton('admin/session')->isAllowed('system/config/icecatlive_information');
+    }
+
+    /**
+     * Show explanation for setting
+     * @return string;
+     */
+    public function explanationsAction()
+    {
+        $content = '<table class="explanation_table">
+            <tbody>
+            <tr>
+                <th><strong>Setting\'s name</strong></th>
+                <th><strong>Description</strong></th>
+                <th>Default value</th>
+                <th>Note</th>
+            </tr>
+            <tr>
+                <td colspan="3"><strong>Icecat Live Settings</strong></td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td>Icecat User name</td>
+                <td>Login used in your &nbsp;<a href="http://icecat.biz/" class="external-link"
+                                                                     rel="nofollow">icecat.biz</a> account
+                </td>
+                <td style="text-align: center;" >-</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td>Icecat Password</td>
+                <td>Password used in your <a href="http://icecat.biz/" class="external-link"
+                                                                  rel="nofollow">icecat.biz</a> account
+                </td>
+                <td style="text-align: center;" >-</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td>Subscription level</td>
+                <td>Subscription type of your <a href="http://icecat.biz/" class="external-link"
+                                                                      rel="nofollow">icecat.biz</a> account
+                </td>
+                <td style="text-align: center;" >OpenIcecat XML</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Language</td>
+                <td colspan="1" ><p>Define a language of Front-end displaying data</p></td>
+                <td style="text-align: center;" colspan="1" >Use Store Locale</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >MPN</td>
+                <td colspan="1" ><p><span style="color: rgb(47,47,47);">The attribute to use for mapping</span></p></td>
+                <td style="text-align: center;" colspan="1" >mpn</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Brand</td>
+                <td colspan="1" ><span style="color: rgb(47,47,47);">The attribute to use for mapping</span>
+                </td>
+                <td style="text-align: center;" colspan="1" ><span style="color: rgb(0,0,0);">brand</span>
+                </td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >GTIN</td>
+                <td colspan="1" ><span style="color: rgb(47,47,47);">The attribute to use for mapping</span>
+                </td>
+                <td style="text-align: center;" colspan="1" >gtin</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Use Product Image from</td>
+                <td colspan="1" >Use images from your Magento database or load from IceCat</td>
+                <td style="text-align: center;" colspan="1" >From Icecat</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Show/Hide products not presented at icecat</td>
+                <td colspan="1" ><p>Define the type of displaying for products</p></td>
+                <td style="text-align: center;" colspan="1" >Show all products</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Use Short description from</td>
+                <td colspan="1" ><p>Define the place of getting a short description</p></td>
+                <td style="text-align: center;" colspan="1" >From Icecat</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Use Description from</td>
+                <td colspan="1" ><p>Define the place of getting a description</p></td>
+                <td style="text-align: center;" colspan="1" >From Icecat</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Use Product Name from</td>
+                <td colspan="1" ><p>Define the place of getting a product name</p></td>
+                <td style="text-align: center;" colspan="1" >From Icecat</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Not view attribute in product</td>
+                <td colspan="1" ><p>List of attributes where you can select ones you don\'t want to be
+                    displayed</p></td>
+                <td style="text-align: center;" colspan="1" >-</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Loading type:</td>
+                <td colspan="1" ><p>Define the way of loading information on Front-end</p></td>
+                <td style="text-align: center;" colspan="1" >From cache</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            <tr>
+                <td>Import ONLY new products:</td>
+                <td>Define a necessity of importing new products</td>
+                <td style="text-align: center;" >No</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td>Full import data</td>
+                <td>&nbsp;This is&nbsp;the button that activate a full import</td>
+                <td style="text-align: center;" >-</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="1" >Update information on new products</td>
+                <td colspan="1" >&nbsp;This is the button that activate updating process for new products
+                </td>
+                <td style="text-align: center;" colspan="1" >-</td>
+                <td colspan="1" >&nbsp;</td>
+            </tr>
+            </tbody>
+        </table>
+        <style>
+                .explanation_table, .explanation_table th, .explanation_table td {
+                     border: solid 1px black;
+                }
+        </style>
+        ';
+        echo $content;
     }
 }

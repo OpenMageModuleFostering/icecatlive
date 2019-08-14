@@ -16,4 +16,9 @@ class Iceshop_Icecatlive_Adminhtml_ImportprogressController extends Mage_Adminht
         Mage::app()->getResponse()->setHeader('Content-type', 'application/json');
         Mage::app()->getResponse()->setBody($importlogJson);
     }
+
+    protected function _isAllowed()
+    {
+        return Mage::getSingleton('admin/session')->isAllowed('system/config/icecat_root');
+    }
 }

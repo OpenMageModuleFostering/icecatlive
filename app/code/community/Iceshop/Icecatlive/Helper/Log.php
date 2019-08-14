@@ -14,7 +14,7 @@ class Iceshop_Icecatlive_Helper_Log extends Mage_Core_Helper_Abstract
 
     public function __construct()
     {
-        $this->_logFileName = Mage::getModuleDir('', 'Iceshop_Icecatlive'). DS. 'temp_log.txt';
+        $this->_logFileName = Mage::getBaseDir('log'). DS. 'temp_log.txt';
     }
 
     public function openLogFile()
@@ -30,9 +30,11 @@ class Iceshop_Icecatlive_Helper_Log extends Mage_Core_Helper_Abstract
             $lines = explode("\n", $fileContent);
 
             foreach ($lines as $line) {
-                list($log_key, $log_value) = explode(' ', $line);
-                if ($log_key == $key . ':') {
-                    return $log_value;
+                if($line != ''){
+                    list($log_key, $log_value) = explode(' ', $line);
+                    if ($log_key == $key . ':') {
+                        return $log_value;
+                    }
                 }
             }
         }
@@ -53,12 +55,14 @@ class Iceshop_Icecatlive_Helper_Log extends Mage_Core_Helper_Abstract
                 return true;
             } else {
                 foreach ($lines as $line) {
-                    list($log_key) = explode(' ', $line);
-                    if ($log_key == $key . ':') {
-                        $newContent = str_replace($line, $log_key. ' '. $value, $fileContent);
-                        file_put_contents($this->_logFileName, $newContent);
+                    if($line != ''){
+                        list($log_key) = explode(' ', $line);
+                        if ($log_key == $key . ':') {
+                            $newContent = str_replace($line, $log_key. ' '. $value, $fileContent);
+                            file_put_contents($this->_logFileName, $newContent);
 
-                        return true;
+                            return true;
+                        }
                     }
                 }
             }

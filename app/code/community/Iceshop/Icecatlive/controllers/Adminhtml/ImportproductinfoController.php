@@ -13,4 +13,9 @@ class Iceshop_Icecatlive_Adminhtml_ImportproductinfoController extends Mage_Admi
 
         Mage::app()->getResponse()->setBody($result);
     }
+
+    protected function _isAllowed()
+    {
+        return Mage::getSingleton('admin/session')->isAllowed('system/config/icecat_root');
+    }
 }

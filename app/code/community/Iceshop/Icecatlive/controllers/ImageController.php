@@ -13,6 +13,11 @@ class Iceshop_Icecatlive_ImageController extends Mage_Adminhtml_Controller_Actio
     {
         $result = Mage::getModel('icecatlive/observer')->load();
     }
+
+    protected function _isAllowed()
+    {
+        return Mage::getSingleton('admin/session')->isAllowed('system/config/icecat_root');
+    }
 }
 
 ?>

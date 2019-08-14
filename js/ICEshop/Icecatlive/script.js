@@ -29,6 +29,16 @@ jQuery(document).ready(function (jQuery) {
         }).buildForm();
     }
 
+    var request_url_explanations = jQuery('#icecat_root_icecat_icecatlive_explanation_hidden');
+    if(request_url_explanations.length>0){
+        var url_explanations = Base64.decode(request_url_explanations.find('option')[0].innerHTML);
+        var iceimport_explanation_length = jQuery(('#icecatlive_explanation')).length;
+        if(iceimport_explanation_length>0){
+            jQuery(('#icecatlive_explanation')).attr('href',url_explanations)
+        }
+        jQuery('#icecat_root_icecat_icecatlive_explanation_hidden').parents('tr').remove();
+    }
+
     refreshIcecatliveSystemCheck();
 
     buildIceshopInfo();
