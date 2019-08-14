@@ -30,6 +30,9 @@ class Iceshop_Icecatlive_Model_Observer
         $import_info = array();
 
         $DB_loger = Mage::helper('icecatlive/db');
+        $file_logger = Mage::helper('icecatlive/log');
+
+        $file_logger->openLogFile();
 
         $import_info['process_hash'] = $DB_loger->getLogValue('icecatlive_process_hash');
         $import_info['process_hash_time'] = $DB_loger->getLogValue('icecatlive_process_hash_time');
@@ -50,38 +53,49 @@ class Iceshop_Icecatlive_Model_Observer
         } else {
             $time = microtime(true) - $import_info['process_hash_time'];
             $time = (int)(round($time)*1000)/1000;
+
             if($_GET['process_hash'] != $import_info['process_hash'] && $time<300 && $time>30){
-              $import_info['done'] = 1;
-              if((300 - $time)<60){
-                  $import_info['error'] = $process_running . '<h4>Time wait: '. (300 - $time).' second</h4>';
-              } elseif((300 - $time)>60) {
-                  $import_info['error'] = $process_running . '<h4>Time wait: '. round((300 - $time)/60, 0) .' minute</h4>';
-              }
-              $import_info['count_products'] = 0;
-              $import_info['current_product'] = 0;
-              echo json_encode($import_info);
-              die();
-            } elseif($_GET['process_hash'] != $import_info['process_hash'] && $time<300){
-              if(!empty($import_time_product)&&!empty($import_info['current_product'])&&!empty($import_info['count_products'])){
-                  $time_last = $import_time_product * ($import_info['count_products'] - $import_info['current_product']);
-              }
-              $import_info['done'] = 1;
-
-              if(!empty($time_last)){
-                  if($time_last < 60){
-                  $import_info['error'] = $process_running .'<h4>Time wait: '. $time_last .' second</h4>';
-                  } else {
-                  $import_info['error'] = $process_running .'<h4>Time wait: '. round($time_last/60, 0) .' minute</h4>';
+              if($file_logger->fileExists() && $file_logger->lastUpdate() < 10) {
+                  $import_info['done'] = 1;
+                  if ((300 - $time) < 60) {
+                      $import_info['error'] = $process_running . '<h4>Time wait: ' . (300 - $time) . ' second</h4>';
+                  } elseif ((300 - $time) > 60) {
+                      $import_info['error'] = $process_running . '<h4>Time wait: ' . round((300 - $time) / 60, 0) . ' minute</h4>';
                   }
-              } else {
-                  $import_info['error'] = $process_running;
+                  $import_info['count_products'] = 0;
+                  $import_info['current_product'] = 0;
+                  echo json_encode($import_info);
+                  die();
+              }else if($file_logger->fileExists() && $file_logger->lastUpdate() > 10) {
+                  echo json_encode($import_info);
+                  die();
               }
-              $import_info['count_products'] = 0;
-              $import_info['current_product'] = 0;
-              echo json_encode($import_info);
-              die();
+            } elseif($_GET['process_hash'] != $import_info['process_hash'] && $time<300){
+                if($file_logger->fileExists() && $file_logger->lastUpdate() < 10) {
+                    if (!empty($import_time_product) && !empty($import_info['current_product']) && !empty($import_info['count_products'])) {
+                        $time_last = $import_time_product * ($import_info['count_products'] - $import_info['current_product']);
+                    }
+                    $import_info['done'] = 1;
 
+                    if (!empty($time_last)) {
+                        if ($time_last < 60) {
+                            $import_info['error'] = $process_running . '<h4>Time wait: ' . $time_last . ' second</h4>';
+                        } else {
+                            $import_info['error'] = $process_running . '<h4>Time wait: ' . round($time_last / 60, 0) . ' minute</h4>';
+                        }
+                    } else {
+                        $import_info['error'] = $process_running;
+                    }
+                    $import_info['count_products'] = 0;
+                    $import_info['current_product'] = 0;
+                    echo json_encode($import_info);
+                    die();
+                }else if($file_logger->fileExists() && $file_logger->lastUpdate() > 10) {
+                    echo json_encode($import_info);
+                    die();
+                }
             } else {
+                //file_put_contents('D://file.txt', "Time passed ". $time. " sec.\nLast update: ". $file_logger->lastUpdate(). " sec.");
                 $DB_loger->insetrtUpdateLogValue('icecatlive_process_hash_time', microtime(true));
             }
         }
@@ -344,6 +358,8 @@ class Iceshop_Icecatlive_Model_Observer
             $DB_loger->deleteLogKey('import_time_one_product');
             $DB_loger->deleteLogKey('icecatlive_process_hash');
             $DB_loger->deleteLogKey('icecatlive_process_hash_time');
+
+            $file_logger->deleteLogFile();
 
             if($_GET['update'] != 1 && !$import_id){
                 $DB_loger->insetrtUpdateLogValue('icecatlive_enddate_imported_product', date('Y-m-d H:i:s'));

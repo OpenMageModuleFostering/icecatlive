@@ -3,7 +3,7 @@
     <tabs>
         <iceshop translate="label" module="icecatlive">
             <label>Iceshop</label>
-            <sort_order>150</sort_order>
+            <sort_order>250</sort_order>
         </iceshop>
     </tabs>
     <sections>

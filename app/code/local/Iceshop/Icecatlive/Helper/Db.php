@@ -21,6 +21,11 @@ class Iceshop_Icecatlive_Helper_Db extends Mage_Core_Helper_Abstract {
     private $_writer;
 
     /**
+     * @var Iceshop_Icecatlive_Helper_Log
+     */
+    private $_fileLogger;
+
+    /**
      * @var string
      */
     public $_prefix = '';
@@ -38,6 +43,9 @@ class Iceshop_Icecatlive_Helper_Db extends Mage_Core_Helper_Abstract {
             if (!empty($prefix[0])) {
                 $this->_prefix = $prefix[0];
             }
+
+            $this->_fileLogger = Mage::helper('icecatlive/log');
+
             return true;
         } catch(Exception $e) {
             return false;
@@ -187,6 +195,7 @@ END;";
     public function insetrtUpdateLogValue($key, $value)
     {
         if (!empty($key)) {
+            $this->_fileLogger->insertUpdateLog($key, $value);
             return $this->_writer->query('INSERT INTO `' . $this->_prefix . $productsIdTable = Mage::getConfig()->getNode('default/icecatlive/extensions_logs_tables')->table_name . '` (log_key, log_value)
                                 VALUES ("'.$key.'", "'.$value.'")
                                 ON DUPLICATE KEY UPDATE log_value = VALUES(log_value)
@@ -202,8 +211,10 @@ END;";
             $value = $this->_reader->fetchAll($sql);
             if(isset($value[0]['log_value'])){
               return $value[0]['log_value'];
-            } else {
-              return false;
+            } else if(($log_value = $this->_fileLogger->getLogValue($key)) !== false) {
+              return $log_value;
+            }else {
+                return false;
             }
         }
         return false;
@@ -211,6 +222,7 @@ END;";
     public function deleteLogKey($key)
     {
         if (!empty($key)) {
+            $this->_fileLogger->deleteLogValue($key);
             return $this->_writer->query('DELETE FROM `' . $this->_prefix . $productsIdTable = Mage::getConfig()->getNode('default/icecatlive/extensions_logs_tables')->table_name . '` WHERE log_key = "'.$key.'"');
         }
         return false;
