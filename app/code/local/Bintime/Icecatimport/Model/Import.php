@@ -198,19 +198,22 @@ class Bintime_Icecatimport_Model_Import extends Mage_Core_Model_Abstract {
     if (!count($galleryPhotos)){
       return false;
     }
-    foreach($galleryPhotos as $photo){
-      if ($photo["Size"] > 0){
-        $picHeight = (int)$photo["PicHeight"];
-        $picWidth  = (int)$photo["PicWidth"];
-        $thumbUrl  = (string)$photo["ThumbPic"];
-        $picUrl    = (string)$photo["Pic"];
+    foreach($galleryPhotos as $photo) {
+      if ($photo["Size"] > 0) {
+	    $picUrl    = (string)$photo["Pic"];
+		if (!empty($picUrl) && strpos($picUrl,'feature_logo') <= 0) {
+          $picHeight = (int)$photo["PicHeight"];
+          $picWidth  = (int)$photo["PicWidth"];
+          $thumbUrl  = (string)$photo["ThumbPic"];
+        
 
-        array_push($this->galleryPhotos, array(
-          'height' => $picHeight,
-          'width'  => $picWidth,
-          'thumb'  => $thumbUrl,
-          'pic'    => $picUrl
-        ));
+          array_push($this->galleryPhotos, array(
+            'height' => $picHeight,
+            'width'  => $picWidth,
+            'thumb'  => $thumbUrl,
+            'pic'    => $picUrl
+          ));
+		}
       }
     }
   }

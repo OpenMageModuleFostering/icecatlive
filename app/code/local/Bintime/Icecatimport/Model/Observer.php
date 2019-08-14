@@ -415,7 +415,9 @@ class Bintime_Icecatimport_Model_Observer
       $webClient->setAuth($userName, $userPass, Zend_Http_CLient::AUTH_BASIC);
       $response = $webClient->request('GET');
       if ($response->isError()){
-        throw new Exception('<br>ERROR Occured.<br>Response Status: '.$response->getStatus()."<br>Response Message: ".$response->getMessage());
+        throw new Exception('<br>ERROR Occured.<br>Response Status: '.$response->getStatus()."<br>Response Message: ".$response->getMessage().
+                            "<br>Please, make sure that you added correct icecat username and password to <strong>Icecat Live!</strong> configuration <br>
+                             and you have your webshop's correct IP in <strong>Allowed IP addresses</strong> field in your icecat account.");
       }
     }
     catch (Exception $e) {

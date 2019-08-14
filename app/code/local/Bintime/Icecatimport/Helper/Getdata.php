@@ -183,8 +183,8 @@ class Bintime_Icecatimport_Helper_Getdata extends Mage_Core_Helper_Abstract
           }
           array_push($relatedProductsList['a'], $relatedProductInfo);
         }
-        return $relatedProductsList;
      }
+     return $relatedProductsList;
   }
 }  
 ?>

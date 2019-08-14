@@ -2,7 +2,7 @@
 <config>    
 	<modules>
 		<Bintime_Icecatimport>
-			<version>0.1.1</version>
+			<version>1.5.0</version>
 		</Bintime_Icecatimport>
 	</modules>
 	<global>
@@ -18,14 +18,22 @@
 			</catalog>
 		</helpers>
 	<blocks>
+                        <Bintime_Icecatimport>
+				<class>Bintime_Icecatimport_Block</class>
+	                </Bintime_Icecatimport>
 			<catalog>
 				<rewrite>
-					<product_view_attributes>Bintime_Icecatimport_Block_Attributes</product_view_attributes>
 					<product_view_media>Bintime_Icecatimport_Block_Media</product_view_media>	
 					<product_list_related>Bintime_Icecatimport_Block_Related</product_list_related>		
 					<product_list_upsell>Bintime_Icecatimport_Block_Upsell</product_list_upsell> 
+				        <product_list_toolbar>Bintime_Icecatimport_Block_Product_List_Toolbar</product_list_toolbar>
                 </rewrite>
-			</catalog>	
+			</catalog>
+                        <catalogsearch>		
+                                <rewrite>
+                                       <result>Bintime_Icecatimport_CatalogSearch_Block_Result</result>
+                                </rewrite>
+                        </catalogsearch>	
 	</blocks>
 		<models>
             <icecatimport>
@@ -88,9 +96,9 @@
 		</routers>
 		<layout>
 			<updates>
-				<icecatimport>
-					<file>icecatimport.xml</file>
-				</icecatimport>
+				<IcecatGroupAttributes>
+				    <file>IcecatGroupAttributes.xml</file>
+				</IcecatGroupAttributes>
 			</updates>
 		</layout>
 		<translate>
