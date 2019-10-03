@@ -1,16 +1,19 @@
 {
-    "name": "OpenMageModuleFostering/IcecatLive",
+    "name": "OpenMageModuleFostering\/IcecatLive",
     "type": "magento-module",
     "license": "OSL-v.3",
     "homepage": "",
     "description": "ICEcat to Magento Open Source Connector",
     "authors": [
-    {
-        "name": "IceShop",
-        "email": "support@iceshop.nl"
-    }
-],
+        {
+            "name": "IceShop",
+            "email": "support@iceshop.nl"
+        }
+    ],
     "suggest": {
-        "magento-hackathon/magento-composer-installer": "*"
-    }
+        "magento-hackathon\/magento-composer-installer": "*"
+    },
+    "keywords": [
+        "openmage-module"
+    ]
 }
